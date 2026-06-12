@@ -28,9 +28,46 @@ const today=()=>new Date().toISOString().slice(0,10);
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3000)}
 function api(action, payload={}){return new Promise((resolve,reject)=>{if(API_URL.includes('PASTE_')){reject(new Error('Paste Apps Script Web App URL in API_URL first'));return}const cb='cb_'+Date.now()+'_'+Math.floor(Math.random()*9999);window[cb]=res=>{delete window[cb];s.remove();res.success===false?reject(new Error(res.message||'API error')):resolve(res)};const s=document.createElement('script');s.src=API_URL+'?action='+encodeURIComponent(action)+'&callback='+cb+'&payload='+encodeURIComponent(JSON.stringify(payload));s.onerror=()=>reject(new Error('API connection failed'));document.body.appendChild(s)})}
 function cls(id){return (db.classes||[]).find(c=>c.ClassID===id)||{ClassName:id,Section:'—'}};function user(id){return (db.users||[]).find(u=>u.UserID===id)||{Name:id}};function stud(id){return (db.students||[]).find(s=>s.StudentID===id)||{StudentName:id}};function isHoliday(d){return (db.holidays||[]).some(h=>h.Date===d)}
-async function login(){try{const r=await api('login',{username:username.value,password:password.value,type:loginType.value});currentUser=r.user;document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';who.textContent=currentUser.Name+' ('+currentUser.Role+')';await load();buildTabs();show(currentUser.Role==='student'?'student':'dashboard')}catch(e){toast(e.message)}}
-function logout(){location.reload()} async function load(){const r=await api('load',{userId:currentUser.UserID,role:currentUser.Role,studentId:currentUser.StudentID});db=r.data;initFilters()}
-function myAttendanceClasses(){if(currentUser.Role==='admin')return db.classes;let ids=db.assignments.filter(a=>a.TeacherID===currentUser.UserID&&a.CanTakeAttendance==='YES').map(a=>a.ClassID);return db.classes.filter(c=>ids.includes(c.ClassID))}
+async function login(){
+  try{
+    const r = await api('login',{
+      username:username.value,
+      password:password.value,
+      type:loginType.value
+    });
+
+    const result = r.data || r;
+    currentUser = result.user;
+
+    if(!currentUser){
+      throw new Error('Login success but user data not received');
+    }
+
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='block';
+
+    who.textContent = (currentUser.Name || currentUser.StudentName || currentUser.Username) + ' (' + (currentUser.Role || result.role || 'student') + ')';
+
+    db = result.appData || {};
+    initFilters();
+    buildTabs();
+    show((currentUser.Role || result.role)==='student' ? 'student' : 'dashboard');
+
+  }catch(e){
+    toast(e.message);
+  }
+}
+function logout(){location.reload()} async function load(){
+  const r = await api('load',{
+    userId: currentUser.UserID || currentUser.StudentID,
+    role: currentUser.Role || 'student',
+    studentId: currentUser.StudentID
+  });
+
+  const result = r.data || r;
+  db = result.data || result;
+  initFilters();
+}function myAttendanceClasses(){if(currentUser.Role==='admin')return db.classes;let ids=db.assignments.filter(a=>a.TeacherID===currentUser.UserID&&a.CanTakeAttendance==='YES').map(a=>a.ClassID);return db.classes.filter(c=>ids.includes(c.ClassID))}
 function mySyllabusRows(){if(currentUser.Role==='admin')return db.syllabus;return db.syllabus.filter(s=>s.TeacherID===currentUser.UserID)}
 function myExams(){if(currentUser.Role==='admin')return db.exams;return db.exams.filter(e=>e.MarksTeacherID===currentUser.UserID)}
 function buildTabs(){let tabs=[];if(currentUser.Role==='student')tabs=[['student','My Dashboard']];else{tabs=[['dashboard','Dashboard']];if(myAttendanceClasses().length)tabs.push(['attendance','Attendance'],['absentees','Absentees'],['dayreport','Day Report']);if(mySyllabusRows().length||currentUser.Role==='admin')tabs.push(['syllabus','Syllabus']);if(myExams().length||currentUser.Role==='admin')tabs.push(['marks','Marks']);if(currentUser.Role==='admin')tabs.push(['admin','Admin']);}document.getElementById('tabs').innerHTML=tabs.map(t=>`<button class="tab" onclick="show('${t[0]}')" data-t="${t[0]}">${t[1]}</button>`).join('')}
