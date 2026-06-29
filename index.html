@@ -31,14 +31,108 @@ function show(id){document.querySelectorAll('.page').forEach(p=>p.classList.remo
 function opts(el,arr,val='ClassID',txt='ClassName',all=''){if(!el)return; el.innerHTML=(all?`<option value="">${all}</option>`:'')+arr.map(x=>`<option value="${x[val]}">${x[txt]}${x.Section?' — '+x.Section:''}</option>`).join('')}
 function initFilters(){['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id); if(e)e.value=today()}); opts(attClass,myAttendanceClasses()); opts(absClass,myAttendanceClasses(),'ClassID','ClassName','All Classes'); opts(sylClass,[...new Map(mySyllabusRows().map(s=>[s.ClassID,cls(s.ClassID)])).values()]); opts(exClass,db.classes); opts(exTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(adSylClass,db.classes); opts(adTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignClass,db.classes); populateSubjects();}
 function populateSubjects(){let subs=[...new Set((db.syllabus||[]).map(s=>s.Subject).filter(Boolean))]; ['sylSubject','exSubject','assignSubject'].forEach(id=>{let e=document.getElementById(id); if(e)e.innerHTML=subs.map(s=>`<option>${s}</option>`).join('')})}
-function renderDashboard(){let d=today(), classes=myAttendanceClasses(), att=db.attendance.filter(a=>a.Date===d), p=att.filter(a=>a.Status==='P').length, a=att.filter(a=>a.Status==='A').length; dashStats.innerHTML=`<div class="stat"><div class="v">${classes.length}</div><div class="l">Classes</div></div><div class="stat"><div class="v">${p}</div><div class="l">Present Today</div></div><div class="stat"><div class="v">${a}</div><div class="l">Absent Today</div></div>`; todayClass.innerHTML=classes.map(c=>{let total=db.students.filter(s=>s.ClassID===c.ClassID&&s.Active!=='NO').length;let abs=att.filter(x=>x.ClassID===c.ClassID&&x.Status==='A').length;return `<p style="padding:8px;border-bottom:1px solid var(--border)">${c.ClassName}: <span class="badge ${abs?'bred':'bgreen'}">${abs?abs+' absent':'All present'}</span> / ${total}</p>`}).join('')}
+function renderDashboard(){
+  let d=today(), classes=myAttendanceClasses();
+  let att=db.attendance.filter(a=>a.Date===d);
+
+  let mp=att.filter(a=>a.Session==='Morning' && a.Status==='P').length;
+  let ma=att.filter(a=>a.Session==='Morning' && a.Status==='A').length;
+  let ap=att.filter(a=>a.Session==='Afternoon' && a.Status==='P').length;
+  let aa=att.filter(a=>a.Session==='Afternoon' && a.Status==='A').length;
+
+  dashStats.innerHTML=`
+    <div class="stat"><div class="v">${classes.length}</div><div class="l">Classes</div></div>
+    <div class="stat"><div class="v">${mp}</div><div class="l">Morning Present</div></div>
+    <div class="stat"><div class="v">${ma}</div><div class="l">Morning Absent</div></div>
+    <div class="stat"><div class="v">${ap}</div><div class="l">Afternoon Present</div></div>
+    <div class="stat"><div class="v">${aa}</div><div class="l">Afternoon Absent</div></div>
+  `;
+
+  todayClass.innerHTML=classes.map(c=>{
+    let total=db.students.filter(s=>s.ClassID===c.ClassID&&s.Active!=='NO').length;
+
+    let mAbs=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Morning'&&x.Status==='A').length;
+    let aAbs=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Afternoon'&&x.Status==='A').length;
+
+    let mPre=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Morning'&&x.Status==='P').length;
+    let aPre=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Afternoon'&&x.Status==='P').length;
+
+    return `
+      <p style="padding:8px;border-bottom:1px solid var(--border)">
+        <b>${c.ClassName}</b> / ${total}<br>
+        Morning: <span class="badge bgreen">${mPre} Present</span>
+        <span class="badge ${mAbs?'bred':'bgreen'}">${mAbs} Absent</span>
+        &nbsp; | &nbsp;
+        Afternoon: <span class="badge bgreen">${aPre} Present</span>
+        <span class="badge ${aAbs?'bred':'bgreen'}">${aAbs} Absent</span>
+      </p>`;
+  }).join('');
+}
 function renderAttendance(){let c=attClass.value,d=attDate.value,ses=attSession.value;if(!c||!d)return;attState={};let holiday=isHoliday(d), students=db.students.filter(s=>s.ClassID===c&&s.Active!=='NO'), ex=db.attendance.filter(a=>a.Date===d&&a.Session===ses&&a.ClassID===c), saved=ex.length>0; ex.forEach(a=>attState[a.StudentID]=a.Status); attInfo.innerHTML=holiday?`<span class="badge borange">Holiday declared. No attendance.</span>`: saved?`<span class="badge borange">Attendance already saved. Teachers can only request edit.</span>`:`<span class="badge bblue">Unmarked students auto-save as Present.</span>`; if(holiday){attGrid.innerHTML='<div class="card">Holiday — students are neither present nor absent.</div>';attActions.innerHTML='';return} attGrid.innerHTML=students.map(st=>`<div class="student-row ${attState[st.StudentID]==='P'?'present':attState[st.StudentID]==='A'?'absent':''}" id="r_${st.StudentID}"><div><b>${st.StudentName}</b><br><span style="color:var(--ink3)">Roll ${st.RollNo} | ${st.Village} | ${st.ParentPhone}</span></div><div>${saved?editControls(st):normalControls(st)}</div></div>`).join(''); attActions.innerHTML=saved?'':`<button class="btn" onclick="markAll('P')">All Present</button> <button class="btn red" onclick="markAll('A')">All Absent</button> <button class="btn primary" onclick="saveAttendance()">Save Attendance</button>`}
 function normalControls(st){return `<button class="btn green sm" onclick="setAtt('${st.StudentID}','P')">Present</button> <button class="btn red sm" onclick="setAtt('${st.StudentID}','A')">Absent</button>`} function editControls(st){let old=attState[st.StudentID]||'P'; return `<select id="new_${st.StudentID}" style="width:110px"><option value="P" ${old==='P'?'selected':''}>Present</option><option value="A" ${old==='A'?'selected':''}>Absent</option></select> <input id="reason_${st.StudentID}" placeholder="Reason" style="width:160px"> <button class="btn sm" onclick="sendEditRequest('${st.StudentID}')">Request Edit</button>`}
 function setAtt(id,st){attState[id]=st;let r=document.getElementById('r_'+id);if(r)r.className='student-row '+(st==='P'?'present':'absent')} function markAll(st){db.students.filter(s=>s.ClassID===attClass.value&&s.Active!=='NO').forEach(x=>setAtt(x.StudentID,st))}
 async function saveAttendance(){let c=attClass.value,d=attDate.value,ses=attSession.value;let rows=db.students.filter(s=>s.ClassID===c&&s.Active!=='NO').map(st=>({Date:d,Session:ses,ClassID:c,StudentID:st.StudentID,Status:attState[st.StudentID]||'P',MarkedBy:currentUser.UserID,Timestamp:new Date().toISOString()}));try{await api('saveAttendance',{records:rows});toast('Attendance saved');await load();renderAttendance();renderDashboard();renderAbsentees();renderDayReport();}catch(e){toast(e.message)}}
 async function sendEditRequest(sid){try{let ns=document.getElementById('new_'+sid).value, reason=document.getElementById('reason_'+sid).value; await api('createEditRequest',{Date:attDate.value,Session:attSession.value,ClassID:attClass.value,StudentID:sid,OldStatus:attState[sid]||'',NewStatus:ns,Reason:reason,RequestedBy:currentUser.UserID}); toast('Edit request sent'); await load(); }catch(e){toast(e.message)}}
 async function declareHoliday(){try{await api('declareHoliday',{Date:attDate.value,DeclaredBy:currentUser.UserID});toast('Holiday declared');await load();renderAttendance()}catch(e){toast(e.message)}} async function removeHoliday(){try{await api('removeHoliday',{Date:attDate.value});toast('Holiday removed');await load();renderAttendance()}catch(e){toast(e.message)}}
-function renderAbsentees(){let d=absDate.value||today(),ses=absSession.value,c=absClass.value;let rows=db.attendance.filter(a=>a.Date===d&&a.Session===ses&&a.Status==='A'&&(!c||a.ClassID===c));absBody.innerHTML=rows.map(a=>{let st=stud(a.StudentID),cl=cls(a.ClassID);let start=d.slice(0,8)+'01';let cnt=db.attendance.filter(x=>x.StudentID===a.StudentID&&x.Status==='A'&&x.Date>=start&&x.Date<=d).length;return `<tr><td>${a.Date}</td><td>${a.Session}</td><td>${cl.ClassName}</td><td>${st.RollNo}</td><td>${st.StudentName}</td><td>${st.Village}</td><td><a href="tel:${st.ParentPhone}">${st.ParentPhone}</a></td><td>${user(a.MarkedBy).Name}</td><td><span class="badge bblue">${cnt}</span></td></tr>`}).join('')||'<tr><td colspan="9">No absentees</td></tr>'}
+function renderAbsentees(){
+  let d=absDate.value||today(), c=absClass.value;
+
+  let rows=db.attendance.filter(a=>
+    a.Date===d &&
+    a.Status==='A' &&
+    (!c || a.ClassID===c)
+  );
+
+  let morningCount=rows.filter(r=>r.Session==='Morning').length;
+  let afternoonCount=rows.filter(r=>r.Session==='Afternoon').length;
+
+  let summary=`
+    <tr>
+      <td colspan="9">
+        <b>Morning Absentees:</b> ${morningCount}
+        &nbsp;&nbsp; | &nbsp;&nbsp;
+        <b>Afternoon Absentees:</b> ${afternoonCount}
+      </td>
+    </tr>
+  `;
+
+  absBody.innerHTML=summary + rows.map(a=>{
+    let st=stud(a.StudentID), cl=cls(a.ClassID);
+    let start=d.slice(0,8)+'01';
+
+    let morningMonth=db.attendance.filter(x=>
+      x.StudentID===a.StudentID &&
+      x.Status==='A' &&
+      x.Session==='Morning' &&
+      x.Date>=start &&
+      x.Date<=d
+    ).length;
+
+    let afternoonMonth=db.attendance.filter(x=>
+      x.StudentID===a.StudentID &&
+      x.Status==='A' &&
+      x.Session==='Afternoon' &&
+      x.Date>=start &&
+      x.Date<=d
+    ).length;
+
+    return `
+      <tr>
+        <td>${a.Date}</td>
+        <td>${a.Session}</td>
+        <td>${cl.ClassName}</td>
+        <td>${st.RollNo}</td>
+        <td>${st.StudentName}</td>
+        <td>${st.Village}</td>
+        <td><a href="tel:${st.ParentPhone}">${st.ParentPhone}</a></td>
+        <td>${user(a.MarkedBy).Name}</td>
+        <td>
+          <span class="badge bblue">M: ${morningMonth}</span>
+          <span class="badge borange">A: ${afternoonMonth}</span>
+        </td>
+      </tr>`;
+  }).join('') || '<tr><td colspan="9">No absentees</td></tr>';
+}
 function renderDayReport(){let d=repDate.value||today(),ses=repSession.value,classes=myAttendanceClasses();let totals={t:0,p:0,a:0,n:0};repBody.innerHTML=classes.map(c=>{let studs=db.students.filter(s=>s.ClassID===c.ClassID&&s.Active!=='NO'), rec=db.attendance.filter(a=>a.Date===d&&a.Session===ses&&a.ClassID===c.ClassID), p=rec.filter(x=>x.Status==='P').length,a=rec.filter(x=>x.Status==='A').length,n=Math.max(studs.length-p-a,0);totals.t+=studs.length;totals.p+=p;totals.a+=a;totals.n+=n;return `<tr><td>${c.ClassName}</td><td>${c.Section}</td><td>${studs.length}</td><td>${p}</td><td>${a}</td><td>${n}</td></tr>`}).join('');repStats.innerHTML=`<div class="stat"><div class="v">${totals.t}</div><div class="l">Total</div></div><div class="stat"><div class="v">${totals.p}</div><div class="l">Present</div></div><div class="stat"><div class="v">${totals.a}</div><div class="l">Absent</div></div><div class="stat"><div class="v">${totals.n}</div><div class="l">Not Marked</div></div>`}
 function renderEditRequests(){editReqBody.innerHTML=(db.editRequests||[]).map(r=>`<tr><td>${r.Date}</td><td>${r.Session}</td><td>${cls(r.ClassID).ClassName}</td><td>${stud(r.StudentID).StudentName}</td><td>${r.OldStatus}</td><td>${r.NewStatus}</td><td>${r.Reason}</td><td>${r.Status}</td><td>${r.Status==='Pending'?`<button class="btn green sm" onclick="approveReq('${r.RequestID}')">Approve</button> <button class="btn red sm" onclick="rejectReq('${r.RequestID}')">Reject</button>`:''}</td></tr>`).join('')||'<tr><td colspan="9">No requests</td></tr>'} async function approveReq(id){await api('approveEditRequest',{RequestID:id,ApprovedBy:currentUser.UserID});toast('Approved');await load();renderEditRequests()} async function rejectReq(id){await api('rejectEditRequest',{RequestID:id,RejectedBy:currentUser.UserID});toast('Rejected');await load();renderEditRequests()}
 function renderSyllabus(){let rows=mySyllabusRows(), cv=sylClass.value, sub=sylSubject.value;if(cv)rows=rows.filter(r=>r.ClassID===cv);if(sub)rows=rows.filter(r=>r.Subject===sub);sylChapter.innerHTML=rows.map(r=>`<option value="${r.SyllabusID}">${r.Chapter}</option>`).join('');sylBody.innerHTML=rows.map(r=>`<tr><td>${cls(r.ClassID).ClassName}</td><td>${r.Subject}</td><td>${r.Chapter}</td><td>${user(r.TeacherID).Name}</td><td>${r.Periods}</td><td><span class="badge ${r.Status==='Completed'?'bgreen':'borange'}">${r.Status}</span></td><td>${r.UpdatedDate||''}</td></tr>`).join('')} async function updateSyllabus(st){try{await api('saveSyllabusStatus',{SyllabusID:sylChapter.value,Status:st,UpdatedBy:currentUser.UserID});toast('Updated');await load();renderSyllabus()}catch(e){toast(e.message)}}
