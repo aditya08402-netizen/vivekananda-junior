@@ -34,7 +34,31 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxswHb0D4F_10qNFILCjXa6
 let currentUser=null, db={}, attState={};
 const today=()=>new Date().toISOString().slice(0,10);
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3000)}
-function api(action, payload={}){return new Promise((resolve,reject)=>{if(API_URL.includes('PASTE_')){reject(new Error('Paste Apps Script Web App URL in API_URL first'));return}const cb='cb_'+Date.now()+'_'+Math.floor(Math.random()*9999);window[cb]=res=>{delete window[cb];s.remove();res.success===false?reject(new Error(res.message||'API error')):resolve(res)};const s=document.createElement('script');s.src=API_URL+'?action='+encodeURIComponent(action)+'&callback='+cb+'&payload='+encodeURIComponent(JSON.stringify(payload));s.onerror=()=>reject(new Error('API connection failed'));document.body.appendChild(s)})}
+async function api(action, payload = {}) {
+  if (API_URL.includes('PASTE_')) {
+    throw new Error('Paste Apps Script Web App URL in API_URL first');
+  }
+
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify({
+      action: action,
+      ...payload
+    })
+  });
+
+  const json = await res.json();
+
+  if (!json.success) {
+    throw new Error(json.message || 'API failed');
+  }
+
+  return json;
+}
 function cls(id){return (db.classes||[]).find(c=>c.ClassID===id)||{ClassName:id,Section:'—'}};function user(id){return (db.users||[]).find(u=>u.UserID===id)||{Name:id}};function stud(id){return (db.students||[]).find(s=>s.StudentID===id)||{StudentName:id}};function isHoliday(d){return (db.holidays||[]).some(h=>h.Date===d)}
 async function login(){
   try{
