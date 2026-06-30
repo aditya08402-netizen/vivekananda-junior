@@ -32,40 +32,102 @@ function opts(el,arr,val='ClassID',txt='ClassName',all=''){if(!el)return; el.inn
 function initFilters(){['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id); if(e)e.value=today()}); opts(attClass,myAttendanceClasses()); opts(absClass,myAttendanceClasses(),'ClassID','ClassName','All Classes'); opts(sylClass,[...new Map(mySyllabusRows().map(s=>[s.ClassID,cls(s.ClassID)])).values()]); opts(exClass,db.classes); opts(exTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(adSylClass,db.classes); opts(adTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignClass,db.classes); populateSubjects();}
 function populateSubjects(){let subs=[...new Set((db.syllabus||[]).map(s=>s.Subject).filter(Boolean))]; ['sylSubject','exSubject','assignSubject'].forEach(id=>{let e=document.getElementById(id); if(e)e.innerHTML=subs.map(s=>`<option>${s}</option>`).join('')})}
 function renderDashboard(){
-  let d=today(), classes=myAttendanceClasses();
-  let att=db.attendance.filter(a=>a.Date===d);
 
-  let mp=att.filter(a=>a.Session==='Morning' && a.Status==='P').length;
-  let ma=att.filter(a=>a.Session==='Morning' && a.Status==='A').length;
-  let ap=att.filter(a=>a.Session==='Afternoon' && a.Status==='P').length;
-  let aa=att.filter(a=>a.Session==='Afternoon' && a.Status==='A').length;
+  let d = today();
+
+  // Admin -> All classes
+  // Teacher -> Only assigned classes
+  let classes = currentUser.Role === 'admin'
+      ? db.classes
+      : myAttendanceClasses();
+
+  let classIds = classes.map(c => c.ClassID);
+
+  // Attendance only for visible classes
+  let att = db.attendance.filter(a =>
+      a.Date === d &&
+      classIds.includes(a.ClassID)
+  );
+
+  let mp = att.filter(a=>a.Session==='Morning' && a.Status==='P').length;
+  let ma = att.filter(a=>a.Session==='Morning' && a.Status==='A').length;
+  let ap = att.filter(a=>a.Session==='Afternoon' && a.Status==='P').length;
+  let aa = att.filter(a=>a.Session==='Afternoon' && a.Status==='A').length;
 
   dashStats.innerHTML=`
-    <div class="stat"><div class="v">${classes.length}</div><div class="l">Classes</div></div>
-    <div class="stat"><div class="v">${mp}</div><div class="l">Morning Present</div></div>
-    <div class="stat"><div class="v">${ma}</div><div class="l">Morning Absent</div></div>
-    <div class="stat"><div class="v">${ap}</div><div class="l">Afternoon Present</div></div>
-    <div class="stat"><div class="v">${aa}</div><div class="l">Afternoon Absent</div></div>
+    <div class="stat">
+      <div class="v">${classes.length}</div>
+      <div class="l">${currentUser.Role==='admin'?'Total Classes':'My Classes'}</div>
+    </div>
+
+    <div class="stat">
+      <div class="v">${mp}</div>
+      <div class="l">Morning Present</div>
+    </div>
+
+    <div class="stat">
+      <div class="v">${ma}</div>
+      <div class="l">Morning Absent</div>
+    </div>
+
+    <div class="stat">
+      <div class="v">${ap}</div>
+      <div class="l">Afternoon Present</div>
+    </div>
+
+    <div class="stat">
+      <div class="v">${aa}</div>
+      <div class="l">Afternoon Absent</div>
+    </div>
   `;
 
-  todayClass.innerHTML=classes.map(c=>{
-    let total=db.students.filter(s=>s.ClassID===c.ClassID&&s.Active!=='NO').length;
+  todayClass.innerHTML = classes.map(c=>{
 
-    let mAbs=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Morning'&&x.Status==='A').length;
-    let aAbs=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Afternoon'&&x.Status==='A').length;
+    let total = db.students.filter(s =>
+        s.ClassID===c.ClassID &&
+        s.Active!=='NO'
+    ).length;
 
-    let mPre=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Morning'&&x.Status==='P').length;
-    let aPre=att.filter(x=>x.ClassID===c.ClassID&&x.Session==='Afternoon'&&x.Status==='P').length;
+    let mPre = att.filter(x =>
+        x.ClassID===c.ClassID &&
+        x.Session==='Morning' &&
+        x.Status==='P'
+    ).length;
+
+    let mAbs = att.filter(x =>
+        x.ClassID===c.ClassID &&
+        x.Session==='Morning' &&
+        x.Status==='A'
+    ).length;
+
+    let aPre = att.filter(x =>
+        x.ClassID===c.ClassID &&
+        x.Session==='Afternoon' &&
+        x.Status==='P'
+    ).length;
+
+    let aAbs = att.filter(x =>
+        x.ClassID===c.ClassID &&
+        x.Session==='Afternoon' &&
+        x.Status==='A'
+    ).length;
 
     return `
-      <p style="padding:8px;border-bottom:1px solid var(--border)">
-        <b>${c.ClassName}</b> / ${total}<br>
-        Morning: <span class="badge bgreen">${mPre} Present</span>
-        <span class="badge ${mAbs?'bred':'bgreen'}">${mAbs} Absent</span>
-        &nbsp; | &nbsp;
-        Afternoon: <span class="badge bgreen">${aPre} Present</span>
-        <span class="badge ${aAbs?'bred':'bgreen'}">${aAbs} Absent</span>
-      </p>`;
+    <p style="padding:8px;border-bottom:1px solid var(--border)">
+      <b>${c.ClassName}</b> (${total})
+
+      <br>
+
+      Morning :
+      <span class="badge bgreen">${mPre} Present</span>
+      <span class="badge ${mAbs?'bred':'bgreen'}">${mAbs} Absent</span>
+
+      &nbsp;&nbsp;
+
+      Afternoon :
+      <span class="badge bgreen">${aPre} Present</span>
+      <span class="badge ${aAbs?'bred':'bgreen'}">${aAbs} Absent</span>
+    </p>`;
   }).join('');
 }
 function renderAttendance(){let c=attClass.value,d=attDate.value,ses=attSession.value;if(!c||!d)return;attState={};let holiday=isHoliday(d), students=db.students.filter(s=>s.ClassID===c&&s.Active!=='NO'), ex=db.attendance.filter(a=>a.Date===d&&a.Session===ses&&a.ClassID===c), saved=ex.length>0; ex.forEach(a=>attState[a.StudentID]=a.Status); attInfo.innerHTML=holiday?`<span class="badge borange">Holiday declared. No attendance.</span>`: saved?`<span class="badge borange">Attendance already saved. Teachers can only request edit.</span>`:`<span class="badge bblue">Unmarked students auto-save as Present.</span>`; if(holiday){attGrid.innerHTML='<div class="card">Holiday — students are neither present nor absent.</div>';attActions.innerHTML='';return} attGrid.innerHTML=students.map(st=>`<div class="student-row ${attState[st.StudentID]==='P'?'present':attState[st.StudentID]==='A'?'absent':''}" id="r_${st.StudentID}"><div><b>${st.StudentName}</b><br><span style="color:var(--ink3)">Roll ${st.RollNo} | ${st.Village} | ${st.ParentPhone}</span></div><div>${saved?editControls(st):normalControls(st)}</div></div>`).join(''); attActions.innerHTML=saved?'':`<button class="btn" onclick="markAll('P')">All Present</button> <button class="btn red" onclick="markAll('A')">All Absent</button> <button class="btn primary" onclick="saveAttendance()">Save Attendance</button>`}
