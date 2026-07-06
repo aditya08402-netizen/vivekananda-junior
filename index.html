@@ -98,16 +98,26 @@ function buildTabs(){
   }
   tabs.innerHTML=t.map(x=>`<button class="tab" onclick="show('${x[0]}')" data-t="${x[0]}">${x[1]}</button>`).join('');
 }
-async function show(id){
+function show(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+
   document.getElementById(id).classList.add('active');
-  let tb=document.querySelector(`[data-t="${id}"]`); if(tb) tb.classList.add('active');
-  try{
-    if(currentUser && authToken){ await load(); }
-  }catch(e){ toast('Refresh failed: '+e.message); }
-  if(id==='syllabus') initSyllabusFilters();
-  ({dashboard:renderDashboard,attendance:renderAttendance,absentees:renderAbsentees,dayreport:renderDayReport,syllabus:renderSyllabus,marks:renderMarks,student:renderStudent,admin:renderAdmin,editrequests:renderEditRequests}[id]||(()=>{}))();
+
+  let tb=document.querySelector(`[data-t="${id}"]`);
+  if(tb) tb.classList.add('active');
+
+  ({
+    dashboard:renderDashboard,
+    attendance:renderAttendance,
+    absentees:renderAbsentees,
+    dayreport:renderDayReport,
+    syllabus:renderSyllabus,
+    marks:renderMarks,
+    student:renderStudent,
+    admin:renderAdmin,
+    editrequests:renderEditRequests
+  }[id]||(()=>{}))();
 }
 function opts(el,arr,val='ClassID',txt='ClassName',all=''){if(!el)return; el.innerHTML=(all?`<option value="">${all}</option>`:'')+arr.map(x=>`<option value="${x[val]}">${x[txt]}${x.Section?' — '+x.Section:''}</option>`).join('')}
 function initFilters(){['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id); if(e)e.value=today()}); opts(attClass,myAttendanceClasses()); opts(absClass,myAttendanceClasses(),'ClassID','ClassName','All Classes'); opts(sylClass,[...new Map(mySyllabusRows().map(s=>[s.ClassID,cls(s.ClassID)])).values()]); opts(exClass,db.classes); opts(exTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(adSylClass,db.classes); opts(adTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignClass,db.classes); populateSubjects();}
