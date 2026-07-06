@@ -53,17 +53,38 @@ async function loginUser(){
 async function logout(){ try{ if(authToken) await api('logout'); }catch(e){} localStorage.removeItem('SV_ATT_TOKEN'); location.reload(); } async function load(){const r=await api('load'); db=r.data||{}; normalizeDb();}
 function normalizeDb(){db.users=db.users||[]; db.classes=db.classes||[]; db.students=db.students||[]; db.assignments=db.assignments||[]; db.attendance=db.attendance||[]; db.holidays=db.holidays||[]; db.syllabus=db.syllabus||[]; db.exams=db.exams||[]; db.marks=db.marks||[]; db.editRequests=db.editRequests||[];}
 function myAttendanceClasses(){if(currentUser.Role==='admin')return db.classes; const ids=db.assignments.filter(a=>a.TeacherID===currentUser.UserID&&a.CanTakeAttendance==='YES').map(a=>a.ClassID); return db.classes.filter(c=>ids.includes(c.ClassID))}
+function clean(v){
+  return String(v || '').trim().toLowerCase();
+}
+
 function mySyllabusRows(){
-  if(currentUser.Role==='admin') return db.syllabus;
+  if(currentUser.Role === 'admin') return db.syllabus;
+
   const assign = db.assignments.filter(a =>
-    a.TeacherID===currentUser.UserID &&
-    String(a.CanUpdateSyllabus).toUpperCase()==='YES' &&
-    String(a.Active||'YES').toUpperCase()!=='NO'
+    clean(a.TeacherID) === clean(currentUser.UserID) &&
+    clean(a.CanUpdateSyllabus) === 'yes' &&
+    clean(a.Active) !== 'no'
   );
-  return db.syllabus.filter(s => assign.some(a => a.ClassID===s.ClassID && a.Subject===s.Subject));
+
+  return db.syllabus.filter(s =>
+    clean(s.TeacherID) === clean(currentUser.UserID) ||
+    assign.some(a =>
+      clean(a.ClassID) === clean(s.ClassID) &&
+      clean(a.Subject) === clean(s.Subject)
+    )
+  );
 }
 function myExams(){if(currentUser.Role==='admin')return db.exams; return db.exams.filter(e=>e.MarksTeacherID===currentUser.UserID)}
-function buildTabs(){let t=[]; if(currentUser.Role==='student')t=[['student','My Dashboard']]; else{t=[['dashboard','Dashboard']]; if(myAttendanceClasses().length)t.push(['attendance','Attendance'],['absentees','Absentees'],['dayreport','Day Report']); if(currentUser.Role==='admin'||mySyllabusRows().length)t.push(['syllabus','Syllabus']); if(currentUser.Role==='admin'||myExams().length)t.push(['marks','Marks']); if(currentUser.Role==='admin')t.push(['editrequests','Edit Requests'],['admin','Admin']);} tabs.innerHTML=t.map(x=>`<button class="tab" onclick="show('${x[0]}')" data-t="${x[0]}">${x[1]}</button>`).join('')}
+function buildTabs(){let t=[]; if(currentUser.Role==='student')t=[['student','My Dashboard']]; else{t=[['dashboard','Dashboard']]; if(myAttendanceClasses().length)t.push(['attendance','Attendance'],['absentees','Absentees'],['dayreport','Day Report']); if(
+  currentUser.Role === 'admin' ||
+  mySyllabusRows().length ||
+  db.assignments.some(a =>
+    clean(a.TeacherID) === clean(currentUser.UserID) &&
+    clean(a.CanUpdateSyllabus) === 'yes'
+  )
+){
+  t.push(['syllabus','Syllabus']);
+} if(currentUser.Role==='admin'||myExams().length)t.push(['marks','Marks']); if(currentUser.Role==='admin')t.push(['editrequests','Edit Requests'],['admin','Admin']);} tabs.innerHTML=t.map(x=>`<button class="tab" onclick="show('${x[0]}')" data-t="${x[0]}">${x[1]}</button>`).join('')}
 function show(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById(id).classList.add('active');let tb=document.querySelector(`[data-t="${id}"]`);if(tb)tb.classList.add('active');({dashboard:renderDashboard,attendance:renderAttendance,absentees:renderAbsentees,dayreport:renderDayReport,syllabus:renderSyllabus,marks:renderMarks,student:renderStudent,admin:renderAdmin,editrequests:renderEditRequests}[id]||(()=>{}))()}
 function opts(el,arr,val='ClassID',txt='ClassName',all=''){if(!el)return; el.innerHTML=(all?`<option value="">${all}</option>`:'')+arr.map(x=>`<option value="${x[val]}">${x[txt]}${x.Section?' — '+x.Section:''}</option>`).join('')}
 function initFilters(){['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id); if(e)e.value=today()}); opts(attClass,myAttendanceClasses()); opts(absClass,myAttendanceClasses(),'ClassID','ClassName','All Classes'); opts(sylClass,[...new Map(mySyllabusRows().map(s=>[s.ClassID,cls(s.ClassID)])).values()]); opts(exClass,db.classes); opts(exTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(adSylClass,db.classes); opts(adTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignTeacher,db.users.filter(u=>u.Role==='teacher'),'UserID','Name'); opts(assignClass,db.classes); populateSubjects();}
