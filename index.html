@@ -139,7 +139,17 @@ function normalControls(st){return `<button class="btn green sm" onclick="setAtt
 function editControls(st){let old=attState[st.StudentID]||'P';return `<select id="new_${st.StudentID}" style="width:110px"><option value="P" ${old==='P'?'selected':''}>Present</option><option value="A" ${old==='A'?'selected':''}>Absent</option></select> <input id="reason_${st.StudentID}" placeholder="Reason" style="width:160px"> <button class="btn sm" onclick="sendEditRequest('${st.StudentID}')">Request Edit</button>`}
 function setAtt(id,st){attState[id]=st;let r=document.getElementById('r_'+id);if(r)r.className='student-row '+(st==='P'?'present':'absent')}
 function markAll(st){db.students.filter(s=>same(s.ClassID,attClass.value)&&active(s.Active)).forEach(x=>setAtt(x.StudentID,st))}
-async function saveAttendance(){let c=attClass.value,d=attDate.value,ses=attSession.value;let rows=db.students.filter(s=>same(s.ClassID,c)&&active(s.Active)).map(st=>({Date:d,Session:ses,ClassID:c,StudentID:st.StudentID,Status:attState[st.StudentID]||'P'}));try{await api('saveAttendance',{records:rows});toast('Attendance saved');await load();initFilters();renderAttendance();renderDashboard()}catch(e){toast(e.message)}}
+async function saveAttendance(){
+  let c=attClass.value,d=attDate.value,ses=attSession.value;
+  let rows=db.students.filter(s=>same(s.ClassID,c)&&active(s.Active))
+    .map(st=>({Date:d,Session:ses,ClassID:c,StudentID:st.StudentID,Status:attState[st.StudentID]||'P'}));
+  try{
+    await api('saveAttendance',{records:rows});
+    toast('Attendance saved');
+    rows.forEach(r=>db.attendance.push({...r,MarkedBy:currentUser.UserID}));
+    renderAttendance();renderDashboard();
+  }catch(e){toast(e.message)}
+}
 async function sendEditRequest(sid){try{await api('createEditRequest',{Date:attDate.value,Session:attSession.value,ClassID:attClass.value,StudentID:sid,OldStatus:attState[sid]||'',NewStatus:document.getElementById('new_'+sid).value,Reason:document.getElementById('reason_'+sid).value});toast('Edit request sent');await load();renderAttendance()}catch(e){toast(e.message)}}
 async function declareHoliday(){try{await api('declareHoliday',{Date:attDate.value});toast('Holiday declared');await load();renderAttendance()}catch(e){toast(e.message)}}
 async function removeHoliday(){try{await api('removeHoliday',{Date:attDate.value});toast('Holiday removed');await load();renderAttendance()}catch(e){toast(e.message)}}
