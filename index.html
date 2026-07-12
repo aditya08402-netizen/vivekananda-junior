@@ -56,9 +56,9 @@ function active(v){return clean(v)!=='no'&&clean(v)!=='false'&&clean(v)!=='0'}
 function showLoader(){const l=document.getElementById('loader');if(l)l.style.display='flex'}
 function hideLoader(){const l=document.getElementById('loader');if(l)l.style.display='none'}
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3500)}
-async function api(action,payload={}){
+async function api(action,payload={},silent=false){
   if(API_URL.includes('PASTE_')) throw new Error('Paste Apps Script Web App URL in API_URL first');
-  showLoader();
+  if(!silent)showLoader();
   try{
     const body={action,...payload};
     if(action!=='login'&&action!=='ping'&&authToken) body.token=authToken;
@@ -66,7 +66,7 @@ async function api(action,payload={}){
     const j=await res.json();
     if(!j.success) throw new Error(j.message||'API failed');
     return j;
-  }finally{hideLoader()}
+  }finally{if(!silent)hideLoader()}
 }
 function cls(id){return (db.classes||[]).find(c=>same(c.ClassID,id))||{ClassName:id,Section:'—'}}
 function user(id){return (db.users||[]).find(u=>same(u.UserID,id))||{Name:id}}
@@ -86,7 +86,17 @@ async function loginUser(){
     app.style.display='block';
     who.textContent=(currentUser.Name||currentUser.StudentName||currentUser.Username)+' ('+currentUser.Role+')';
     initFilters();buildTabs();show(currentUser.Role==='student'?'student':'dashboard');
+    if(currentUser.Role!=='student')backgroundRefresh();
   }catch(e){toast(e.message)}
+}
+async function backgroundRefresh(){
+  try{
+    const r=await api('load',{},true);
+    db=r.data||{};normalizeDb();
+    const cur=document.querySelector('.page.active');
+    initFilters();buildTabs();
+    if(cur)show(cur.id);
+  }catch(e){}
 }
 async function logout(){try{if(authToken)await api('logout')}catch(e){} localStorage.removeItem('SV_JR_ATT_TOKEN');authToken='';location.reload()}
 async function load(){const r=await api('load');db=r.data||{};normalizeDb()}
