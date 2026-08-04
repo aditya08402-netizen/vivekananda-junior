@@ -26,39 +26,84 @@ table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px;bor
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.row>*{flex:1;min-width:150px}
 .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:700}.bgreen{background:#e6f5ed;color:var(--green)}.bred{background:#fce8e8;color:var(--red)}.bblue{background:#e8edfc;color:var(--blue)}.borange{background:#fdf0e8;color:var(--accent)}
 .student-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px;border:1px solid var(--border);border-radius:10px;background:#fff;margin-bottom:8px}.present{background:#e6f5ed}.absent{background:#fce8e8}
-.toast{position:fixed;right:18px;bottom:18px;background:var(--ink);color:white;padding:12px 16px;border-radius:10px;z-index:99}.hide{display:none!important}
-.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.55);display:none;align-items:center;justify-content:center;z-index:999999;backdrop-filter:blur(2px)}.loading-box{background:white;padding:18px 28px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.15);font-weight:700;color:#d4601a}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--ink);color:white;padding:12px 16px;border-radius:10px;z-index:99;transition:opacity .3s}.hide{display:none!important}
+/* Slim top-bar sync indicator instead of full overlay */
+.sync-bar{position:fixed;top:0;left:0;right:0;height:3px;background:var(--accent);z-index:99999;display:none;animation:slide 1.2s linear infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.login-btn-wrap{position:relative}.login-spinner{display:none;position:absolute;right:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
 @media(max-width:650px){.main{padding:12px}.student-row{display:block}.topbar{height:auto;gap:8px;align-items:flex-start;flex-direction:column;padding:10px 14px}}
 </style>
 </head>
 <body>
-<div id="loader" class="loading-overlay"><div class="loading-box">⏳ Loading...</div></div>
-<div id="login" class="login"><div class="login-card"><div class="brand">🎓 SRI VIVEKANANDA</div><h1>Login</h1><p style="color:var(--ink3);margin:5px 0 20px">Junior Attendance System</p><div class="form"><label>Login Type</label><select id="loginType"><option value="staff">Admin / Principal / Teacher</option><option value="student">Student</option></select></div><div class="form"><label>Username</label><input id="username" autocomplete="username"></div><div class="form"><label>Password</label><input id="password" type="password" autocomplete="current-password"></div><button class="btn primary" style="width:100%" onclick="loginUser()">Sign In</button></div></div>
-<div id="app" class="app"><div class="topbar"><div class="brand" style="margin:0">🎓 SRI VIVEKANANDA</div><div><span id="who" style="color:var(--ink3)"></span> <button class="btn sm" onclick="logout()">Logout</button></div></div><div id="tabs" class="tabs"></div><main class="main">
-<section id="dashboard" class="page"><h1>Dashboard</h1><div id="dashStats" class="grid" style="margin:16px 0"></div><div class="card"><h2>Today Class-wise Status</h2><div id="todayClass"></div></div></section>
-<section id="attendance" class="page"><h1>Mark Attendance</h1><div class="card"><div class="row"><div class="form"><label>Class</label><select id="attClass" onchange="renderAttendance()"></select></div><div class="form"><label>Date</label><input type="date" id="attDate" onchange="renderAttendance()"></div><div class="form"><label>Session</label><select id="attSession" onchange="renderAttendance()"><option>Morning</option><option>Afternoon</option></select></div></div><div style="margin:8px 0"><button class="btn sm" onclick="declareHoliday()">Declare Holiday</button> <button class="btn sm" onclick="removeHoliday()">Remove Holiday</button></div><div id="attInfo"></div><div id="attGrid"></div><div id="attActions" style="margin-top:12px"></div></div></section>
-<section id="absentees" class="page"><h1>Absentees</h1><div class="card"><div class="row"><div class="form"><label>Date</label><input type="date" id="absDate" onchange="renderAbsentees()"></div><div class="form"><label>Class</label><select id="absClass" onchange="renderAbsentees()"></select></div></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Class</th><th>Roll</th><th>Name</th><th>Village</th><th>Phone</th><th>Marked By</th><th>Month Count</th></tr></thead><tbody id="absBody"></tbody></table></div></div></section>
-<section id="dayreport" class="page"><h1>Day Report</h1><div class="card"><div class="row"><div class="form"><label>Date</label><input type="date" id="repDate" onchange="renderDayReport()"></div><div class="form"><label>Session</label><select id="repSession" onchange="renderDayReport()"><option>Morning</option><option>Afternoon</option></select></div></div><div id="repStats" class="grid" style="margin:12px 0"></div><div class="table-wrap"><table><thead><tr><th>Class</th><th>Section</th><th>Total</th><th>Present</th><th>Absent</th><th>Not Marked</th></tr></thead><tbody id="repBody"></tbody></table></div></div></section>
-<section id="editrequests" class="page"><h1>Edit Requests</h1><div class="card"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Class</th><th>Student</th><th>Old</th><th>New</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead><tbody id="editReqBody"></tbody></table></div></div></section>
-<section id="syllabus" class="page"><h1>Syllabus Update</h1><div class="card"><div class="row"><div class="form"><label>Class</label><select id="sylClass" onchange="populateSyllabusSubjects();renderSyllabus()"></select></div><div class="form"><label>Subject</label><select id="sylSubject" onchange="renderSyllabus()"></select></div><div class="form"><label>Chapter</label><select id="sylChapter"></select></div><div><button class="btn green" onclick="updateSyllabus('Completed')">Completed Today</button> <button class="btn" onclick="updateSyllabus('In Progress')">In Progress</button></div></div></div><div class="table-wrap"><table><thead><tr><th>Class</th><th>Subject</th><th>Chapter</th><th>Teacher</th><th>Periods</th><th>Status</th><th>Updated</th></tr></thead><tbody id="sylBody"></tbody></table></div></section>
-<section id="marks" class="page"><h1>Marks</h1><div id="examCreate" class="card hide"><h2>Create Exam</h2><div class="row"><div class="form"><label>Exam Name</label><input id="exName"></div><div class="form"><label>Class</label><select id="exClass"></select></div><div class="form"><label>Subject</label><select id="exSubject"></select></div><div class="form"><label>Max Marks</label><input type="number" id="exMax" value="100"></div><div class="form"><label>Exam Date</label><input type="date" id="exDate"></div><div class="form"><label>Marks Entry Teacher</label><select id="exTeacher"></select></div><div><button class="btn primary" onclick="createExam()">Create</button></div></div></div><div class="card"><h2>Enter Marks</h2><div class="row"><div class="form"><label>Exam</label><select id="markExam" onchange="renderMarksEntry()"></select></div></div><div id="markGrid"></div></div><div class="card"><h2>Marks Report</h2><div class="table-wrap"><table><thead><tr><th>Exam</th><th>Class</th><th>Subject</th><th>Student</th><th>Marks</th><th>Status</th><th>Entered By</th></tr></thead><tbody id="marksReport"></tbody></table></div></div></section>
-<section id="student" class="page"><h1>My Dashboard</h1><div id="studentStats" class="grid" style="margin:12px 0"></div><div class="card"><h2>My Attendance</h2><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Status</th></tr></thead><tbody id="myAtt"></tbody></table></div></div><div class="card"><h2>My Marks</h2><div class="table-wrap"><table><thead><tr><th>Exam</th><th>Subject</th><th>Marks</th><th>Status</th></tr></thead><tbody id="myMarks"></tbody></table></div></div></section>
-<section id="admin" class="page"><h1>Admin Master Data</h1><div class="card"><h2>Create User</h2><div class="row"><div class="form"><label>Name</label><input id="newUserName"></div><div class="form"><label>Username</label><input id="newUsername"></div><div class="form"><label>Password</label><input id="newUserPass"></div><div class="form"><label>Role</label><select id="newUserRole"><option value="teacher">Teacher</option><option value="principal">Principal</option><option value="admin">Admin</option></select></div><div><button class="btn primary" onclick="addAdminUser()">Save User</button></div></div></div><div class="card"><h2>Assign Permission</h2><div class="row"><div class="form"><label>Teacher</label><select id="assignTeacher"></select></div><div class="form"><label>Class</label><select id="assignClass"></select></div><div class="form"><label>Subject</label><select id="assignSubject"></select></div><div class="form"><label>Attendance</label><select id="assignAttendance"><option>YES</option><option>NO</option></select></div><div class="form"><label>Syllabus</label><select id="assignSyllabus"><option>YES</option><option>NO</option></select></div><div><button class="btn primary" onclick="addAssignment()">Save</button></div></div></div><div class="card"><h2>Add Syllabus Plan</h2><div class="row"><div class="form"><label>Class</label><select id="adSylClass"></select></div><div class="form"><label>Subject</label><input id="adSubject"></div><div class="form"><label>Chapter</label><input id="adChapter"></div><div class="form"><label>Teacher</label><select id="adTeacher"></select></div><div class="form"><label>Periods</label><input type="number" id="adPeriods" value="1"></div><div><button class="btn primary" onclick="addSyllabus()">Add Plan</button></div></div></div><div class="card"><h2>Users</h2><div class="table-wrap"><table><thead><tr><th>User ID</th><th>Name</th><th>Username</th><th>Role</th><th>Active</th></tr></thead><tbody id="usersBody"></tbody></table></div></div><div class="card"><h2>Teacher Assignments</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Teacher</th><th>Class</th><th>Subject</th><th>Attendance</th><th>Syllabus</th></tr></thead><tbody id="assignBody"></tbody></table></div></div></section>
-</main></div>
+<div id="syncBar" class="sync-bar"></div>
+
+<div id="login" class="login">
+  <div class="login-card">
+    <div class="brand">🎓 SRI VIVEKANANDA</div>
+    <h1>Login</h1>
+    <p style="color:var(--ink3);margin:5px 0 20px">Junior Attendance System</p>
+    <div class="form"><label>Login Type</label><select id="loginType"><option value="staff">Admin / Principal / Teacher</option><option value="student">Student</option></select></div>
+    <div class="form"><label>Username</label><input id="username" autocomplete="username"></div>
+    <div class="form"><label>Password</label><input id="password" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginUser()"></div>
+    <div class="login-btn-wrap">
+      <button id="loginBtn" class="btn primary" style="width:100%" onclick="loginUser()">Sign In</button>
+      <div id="loginSpinner" class="login-spinner"></div>
+    </div>
+    <p id="loginErr" style="color:var(--red);margin-top:10px;font-size:13px"></p>
+  </div>
+</div>
+
+<div id="app" class="app">
+  <div class="topbar">
+    <div class="brand" style="margin:0">🎓 SRI VIVEKANANDA</div>
+    <div><span id="who" style="color:var(--ink3)"></span> <button class="btn sm" onclick="logout()">Logout</button></div>
+  </div>
+  <div id="tabs" class="tabs"></div>
+  <main class="main">
+    <section id="dashboard" class="page"><h1>Dashboard</h1><div id="dashStats" class="grid" style="margin:16px 0"></div><div class="card"><h2>Today Class-wise Status</h2><div id="todayClass"></div></div></section>
+    <section id="attendance" class="page"><h1>Mark Attendance</h1><div class="card"><div class="row"><div class="form"><label>Class</label><select id="attClass" onchange="renderAttendance()"></select></div><div class="form"><label>Date</label><input type="date" id="attDate" onchange="renderAttendance()"></div><div class="form"><label>Session</label><select id="attSession" onchange="renderAttendance()"><option>Morning</option><option>Afternoon</option></select></div></div><div style="margin:8px 0"><button class="btn sm" onclick="declareHoliday()">Declare Holiday</button> <button class="btn sm" onclick="removeHoliday()">Remove Holiday</button></div><div id="attInfo"></div><div id="attGrid"></div><div id="attActions" style="margin-top:12px"></div></div></section>
+    <section id="absentees" class="page"><h1>Absentees</h1><div class="card"><div class="row"><div class="form"><label>Date</label><input type="date" id="absDate" onchange="renderAbsentees()"></div><div class="form"><label>Class</label><select id="absClass" onchange="renderAbsentees()"></select></div></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Class</th><th>Roll</th><th>Name</th><th>Village</th><th>Phone</th><th>Marked By</th><th>Month Count</th></tr></thead><tbody id="absBody"></tbody></table></div></div></section>
+    <section id="dayreport" class="page"><h1>Day Report</h1><div class="card"><div class="row"><div class="form"><label>Date</label><input type="date" id="repDate" onchange="renderDayReport()"></div><div class="form"><label>Session</label><select id="repSession" onchange="renderDayReport()"><option>Morning</option><option>Afternoon</option></select></div></div><div id="repStats" class="grid" style="margin:12px 0"></div><div class="table-wrap"><table><thead><tr><th>Class</th><th>Section</th><th>Total</th><th>Present</th><th>Absent</th><th>Not Marked</th></tr></thead><tbody id="repBody"></tbody></table></div></div></section>
+    <section id="editrequests" class="page"><h1>Edit Requests</h1><div class="card"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Class</th><th>Student</th><th>Old</th><th>New</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead><tbody id="editReqBody"></tbody></table></div></div></section>
+    <section id="syllabus" class="page"><h1>Syllabus Update</h1><div class="card"><div class="row"><div class="form"><label>Class</label><select id="sylClass" onchange="populateSyllabusSubjects();renderSyllabus()"></select></div><div class="form"><label>Subject</label><select id="sylSubject" onchange="renderSyllabus()"></select></div><div class="form"><label>Chapter</label><select id="sylChapter"></select></div><div><button class="btn green" onclick="updateSyllabus('Completed')">Completed Today</button> <button class="btn" onclick="updateSyllabus('In Progress')">In Progress</button></div></div></div><div class="table-wrap"><table><thead><tr><th>Class</th><th>Subject</th><th>Chapter</th><th>Teacher</th><th>Periods</th><th>Status</th><th>Updated</th></tr></thead><tbody id="sylBody"></tbody></table></div></section>
+    <section id="marks" class="page"><h1>Marks</h1><div id="examCreate" class="card hide"><h2>Create Exam</h2><div class="row"><div class="form"><label>Exam Name</label><input id="exName"></div><div class="form"><label>Class</label><select id="exClass"></select></div><div class="form"><label>Subject</label><select id="exSubject"></select></div><div class="form"><label>Max Marks</label><input type="number" id="exMax" value="100"></div><div class="form"><label>Exam Date</label><input type="date" id="exDate"></div><div class="form"><label>Marks Entry Teacher</label><select id="exTeacher"></select></div><div><button class="btn primary" onclick="createExam()">Create</button></div></div></div><div class="card"><h2>Enter Marks</h2><div class="row"><div class="form"><label>Exam</label><select id="markExam" onchange="renderMarksEntry()"></select></div></div><div id="markGrid"></div></div><div class="card"><h2>Marks Report</h2><div class="table-wrap"><table><thead><tr><th>Exam</th><th>Class</th><th>Subject</th><th>Student</th><th>Marks</th><th>Status</th><th>Entered By</th></tr></thead><tbody id="marksReport"></tbody></table></div></div></section>
+    <section id="student" class="page"><h1>My Dashboard</h1><div id="studentStats" class="grid" style="margin:12px 0"></div><div class="card"><h2>My Attendance</h2><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Status</th></tr></thead><tbody id="myAtt"></tbody></table></div></div><div class="card"><h2>My Marks</h2><div class="table-wrap"><table><thead><tr><th>Exam</th><th>Subject</th><th>Marks</th><th>Status</th></tr></thead><tbody id="myMarks"></tbody></table></div></div></section>
+    <section id="admin" class="page"><h1>Admin Master Data</h1><div class="card"><h2>Create User</h2><div class="row"><div class="form"><label>Name</label><input id="newUserName"></div><div class="form"><label>Username</label><input id="newUsername"></div><div class="form"><label>Password</label><input id="newUserPass"></div><div class="form"><label>Role</label><select id="newUserRole"><option value="teacher">Teacher</option><option value="principal">Principal</option><option value="admin">Admin</option></select></div><div><button class="btn primary" onclick="addAdminUser()">Save User</button></div></div></div><div class="card"><h2>Assign Permission</h2><div class="row"><div class="form"><label>Teacher</label><select id="assignTeacher"></select></div><div class="form"><label>Class</label><select id="assignClass"></select></div><div class="form"><label>Subject</label><select id="assignSubject"></select></div><div class="form"><label>Attendance</label><select id="assignAttendance"><option>YES</option><option>NO</option></select></div><div class="form"><label>Syllabus</label><select id="assignSyllabus"><option>YES</option><option>NO</option></select></div><div><button class="btn primary" onclick="addAssignment()">Save</button></div></div></div><div class="card"><h2>Add Syllabus Plan</h2><div class="row"><div class="form"><label>Class</label><select id="adSylClass"></select></div><div class="form"><label>Subject</label><input id="adSubject"></div><div class="form"><label>Chapter</label><input id="adChapter"></div><div class="form"><label>Teacher</label><select id="adTeacher"></select></div><div class="form"><label>Periods</label><input type="number" id="adPeriods" value="1"></div><div><button class="btn primary" onclick="addSyllabus()">Add Plan</button></div></div></div><div class="card"><h2>Users</h2><div class="table-wrap"><table><thead><tr><th>User ID</th><th>Name</th><th>Username</th><th>Role</th><th>Active</th></tr></thead><tbody id="usersBody"></tbody></table></div></div><div class="card"><h2>Teacher Assignments</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Teacher</th><th>Class</th><th>Subject</th><th>Attendance</th><th>Syllabus</th></tr></thead><tbody id="assignBody"></tbody></table></div></div></section>
+  </main>
+</div>
+
 <script>
 const API_URL='https://script.google.com/macros/s/AKfycbwtE1xd5Sfi5wpqlIiqFNGpXGJCI720LPRR7tq9K38kCcNUefox-mdVAEQy3RwudOlDgQ/exec';
-let currentUser=null, db={}, attState={}, authToken=localStorage.getItem('SV_JR_ATT_TOKEN')||'';
+const CACHE_KEY='SV_JR_DB', SESSION_KEY='SV_JR_SESSION';
+let currentUser=null, db={}, attState={}, authToken='';
+
+// ─── Cache helpers ───────────────────────────────────────────────
+function saveCache(data){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(data)) }catch(e){} }
+function loadCache(){ try{ const d=localStorage.getItem(CACHE_KEY); return d?JSON.parse(d):null }catch(e){return null} }
+function saveSession(u,t){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify({user:u,token:t})) }catch(e){} }
+function loadSession(){ try{ const d=localStorage.getItem(SESSION_KEY); return d?JSON.parse(d):null }catch(e){return null} }
+function clearSession(){ localStorage.removeItem(SESSION_KEY); localStorage.removeItem(CACHE_KEY); }
+
 const today=()=>new Date().toISOString().slice(0,10);
 function clean(v){return String(v||'').trim().toLowerCase()}
 function same(a,b){return clean(a)===clean(b)}
 function truthy(v){return ['yes','true','1','y'].includes(clean(v))}
 function active(v){return clean(v)!=='no'&&clean(v)!=='false'&&clean(v)!=='0'}
-function showLoader(){const l=document.getElementById('loader');if(l)l.style.display='flex'}
-function hideLoader(){const l=document.getElementById('loader');if(l)l.style.display='none'}
-function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3500)}
-async function api(action,payload={},silent=false){
-  if(API_URL.includes('PASTE_')) throw new Error('Paste Apps Script Web App URL in API_URL first');
-  if(!silent)showLoader();
+
+// ─── Sync bar (thin top line) instead of blocking overlay ────────
+function showSync(){ document.getElementById('syncBar').style.display='block' }
+function hideSync(){ document.getElementById('syncBar').style.display='none' }
+
+// ─── Toast ───────────────────────────────────────────────────────
+function toast(m,dur=3500){
+  const t=document.createElement('div');t.className='toast';t.textContent=m;
+  document.body.appendChild(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},dur)
+}
+
+// ─── API ─────────────────────────────────────────────────────────
+async function api(action, payload={}, silent=false){
+  if(!silent) showSync();
   try{
     const body={action,...payload};
     if(action!=='login'&&action!=='ping'&&authToken) body.token=authToken;
@@ -66,111 +111,338 @@ async function api(action,payload={},silent=false){
     const j=await res.json();
     if(!j.success) throw new Error(j.message||'API failed');
     return j;
-  }finally{if(!silent)hideLoader()}
+  }finally{
+    if(!silent) hideSync();
+  }
 }
-function cls(id){return (db.classes||[]).find(c=>same(c.ClassID,id))||{ClassName:id,Section:'—'}}
-function user(id){return (db.users||[]).find(u=>same(u.UserID,id))||{Name:id}}
-function stud(id){return (db.students||[]).find(s=>same(s.StudentID,id))||{StudentName:id}}
-function isHoliday(d){return (db.holidays||[]).some(h=>same(h.Date,d))}
-async function loginUser(){
+
+// ─── Auto-login from cache ────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', ()=>{
+  const sess=loadSession();
+  const cached=loadCache();
+  if(sess && cached){
+    // Instantly restore from cache — no API wait
+    authToken=sess.token;
+    currentUser=sess.user;
+    db=cached;
+    normalizeDb();
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('who').textContent=(currentUser.Name||currentUser.StudentName||currentUser.Username)+' ('+currentUser.Role+')';
+    initFilters(); buildTabs();
+    show(currentUser.Role==='student'?'student':'dashboard');
+    // Silently refresh data in background
+    silentRefresh();
+  }
+});
+
+async function silentRefresh(){
   try{
-    const r=await api('login',{username:username.value.trim(),password:password.value.trim(),loginType:loginType.value});
+    const r=await api('load',{},true);
+    db=r.data||{}; normalizeDb(); saveCache(db);
+    const cur=document.querySelector('.page.active');
+    initFilters(); buildTabs();
+    if(cur) show(cur.id);
+  }catch(e){}
+}
+
+// ─── Login ────────────────────────────────────────────────────────
+async function loginUser(){
+  const btn=document.getElementById('loginBtn');
+  const spinner=document.getElementById('loginSpinner');
+  const errEl=document.getElementById('loginErr');
+  errEl.textContent='';
+  btn.disabled=true; btn.style.opacity='.7';
+  spinner.style.display='block';
+  try{
+    const r=await api('login',{
+      username:document.getElementById('username').value.trim(),
+      password:document.getElementById('password').value.trim(),
+      loginType:document.getElementById('loginType').value
+    });
     const result=r.data;
     authToken=result.token||'';
-    localStorage.setItem('SV_JR_ATT_TOKEN',authToken);
     currentUser=result.user||{};
     currentUser.Role=clean(currentUser.Role||result.role);
     db=result.appData||{};
     normalizeDb();
+    saveSession(currentUser, authToken);
+    saveCache(db);
     document.getElementById('login').style.display='none';
-    app.style.display='block';
-    who.textContent=(currentUser.Name||currentUser.StudentName||currentUser.Username)+' ('+currentUser.Role+')';
-    initFilters();buildTabs();show(currentUser.Role==='student'?'student':'dashboard');
-    if(currentUser.Role!=='student')backgroundRefresh();
-  }catch(e){toast(e.message)}
+    document.getElementById('app').style.display='block';
+    document.getElementById('who').textContent=(currentUser.Name||currentUser.StudentName||currentUser.Username)+' ('+currentUser.Role+')';
+    initFilters(); buildTabs();
+    show(currentUser.Role==='student'?'student':'dashboard');
+  }catch(e){
+    errEl.textContent=e.message||'Login failed. Please try again.';
+  }finally{
+    btn.disabled=false; btn.style.opacity='1';
+    spinner.style.display='none';
+  }
 }
-async function backgroundRefresh(){
-  try{
-    const r=await api('load',{},true);
-    db=r.data||{};normalizeDb();
-    const cur=document.querySelector('.page.active');
-    initFilters();buildTabs();
-    if(cur)show(cur.id);
-  }catch(e){}
+
+async function logout(){
+  try{ if(authToken) await api('logout',{},true) }catch(e){}
+  clearSession(); authToken=''; currentUser=null; db={};
+  location.reload();
 }
-async function logout(){try{if(authToken)await api('logout')}catch(e){} localStorage.removeItem('SV_JR_ATT_TOKEN');authToken='';location.reload()}
-async function load(){const r=await api('load');db=r.data||{};normalizeDb()}
-function normalizeDb(){db.users=db.users||[];db.classes=db.classes||[];db.students=db.students||[];db.assignments=db.assignments||[];db.attendance=db.attendance||[];db.holidays=db.holidays||[];db.syllabus=db.syllabus||[];db.exams=db.exams||[];db.marks=db.marks||[];db.editRequests=db.editRequests||[]}
-function myAttendanceClasses(){if(['admin','principal'].includes(currentUser.Role))return db.classes;const ids=db.assignments.filter(a=>same(a.TeacherID,currentUser.UserID)&&truthy(a.CanTakeAttendance)&&active(a.Active)).map(a=>String(a.ClassID));return db.classes.filter(c=>ids.includes(String(c.ClassID)))}
-function mySyllabusRows(){if(['admin','principal'].includes(currentUser.Role))return db.syllabus;const assign=db.assignments.filter(a=>same(a.TeacherID,currentUser.UserID)&&truthy(a.CanUpdateSyllabus)&&active(a.Active));return db.syllabus.filter(s=>same(s.TeacherID,currentUser.UserID)||assign.some(a=>same(a.ClassID,s.ClassID)&&(same(a.Subject,s.Subject)||!String(a.Subject||'').trim())))}
-function myExams(){if(['admin','principal'].includes(currentUser.Role))return db.exams;return db.exams.filter(e=>same(e.MarksTeacherID,currentUser.UserID))}
+
+async function load(silent=false){
+  const r=await api('load',{},silent);
+  db=r.data||{}; normalizeDb(); saveCache(db);
+}
+
+function normalizeDb(){
+  db.users=db.users||[];db.classes=db.classes||[];db.students=db.students||[];
+  db.assignments=db.assignments||[];db.attendance=db.attendance||[];db.holidays=db.holidays||[];
+  db.syllabus=db.syllabus||[];db.exams=db.exams||[];db.marks=db.marks||[];db.editRequests=db.editRequests||[];
+}
+
+function cls(id){return (db.classes||[]).find(c=>same(c.ClassID,id))||{ClassName:id,Section:'—'}}
+function user(id){return (db.users||[]).find(u=>same(u.UserID,id))||{Name:id}}
+function stud(id){return (db.students||[]).find(s=>same(s.StudentID,id))||{StudentName:id}}
+function isHoliday(d){return (db.holidays||[]).some(h=>same(h.Date,d))}
+
+function myAttendanceClasses(){
+  if(['admin','principal'].includes(currentUser.Role)) return db.classes;
+  const ids=db.assignments.filter(a=>same(a.TeacherID,currentUser.UserID)&&truthy(a.CanTakeAttendance)&&active(a.Active)).map(a=>String(a.ClassID));
+  return db.classes.filter(c=>ids.includes(String(c.ClassID)));
+}
+function mySyllabusRows(){
+  if(['admin','principal'].includes(currentUser.Role)) return db.syllabus;
+  const assign=db.assignments.filter(a=>same(a.TeacherID,currentUser.UserID)&&truthy(a.CanUpdateSyllabus)&&active(a.Active));
+  return db.syllabus.filter(s=>same(s.TeacherID,currentUser.UserID)||assign.some(a=>same(a.ClassID,s.ClassID)&&(same(a.Subject,s.Subject)||!String(a.Subject||'').trim())));
+}
+function myExams(){
+  if(['admin','principal'].includes(currentUser.Role)) return db.exams;
+  return db.exams.filter(e=>same(e.MarksTeacherID,currentUser.UserID));
+}
+
 function buildTabs(){
   let t=[];
-  if(currentUser.Role==='student')t=[['student','My Dashboard']];
+  if(currentUser.Role==='student') t=[['student','My Dashboard']];
   else{
     t=[['dashboard','Dashboard']];
-    if(myAttendanceClasses().length)t.push(['attendance','Attendance'],['absentees','Absentees'],['dayreport','Day Report']);
-    if(['admin','principal'].includes(currentUser.Role)||mySyllabusRows().length)t.push(['syllabus','Syllabus']);
-    if(['admin','principal'].includes(currentUser.Role)||myExams().length)t.push(['marks','Marks']);
-    if(['admin','principal'].includes(currentUser.Role))t.push(['editrequests','Edit Requests']);
-    if(currentUser.Role==='admin')t.push(['admin','Admin']);
+    if(myAttendanceClasses().length) t.push(['attendance','Attendance'],['absentees','Absentees'],['dayreport','Day Report']);
+    if(['admin','principal'].includes(currentUser.Role)||mySyllabusRows().length) t.push(['syllabus','Syllabus']);
+    if(['admin','principal'].includes(currentUser.Role)||myExams().length) t.push(['marks','Marks']);
+    if(['admin','principal'].includes(currentUser.Role)) t.push(['editrequests','Edit Requests']);
+    if(currentUser.Role==='admin') t.push(['admin','Admin']);
   }
-  tabs.innerHTML=t.map(x=>`<button class="tab" onclick="show('${x[0]}')" data-t="${x[0]}">${x[1]}</button>`).join('')
+  document.getElementById('tabs').innerHTML=t.map(x=>`<button class="tab" onclick="show('${x[0]}')" data-t="${x[0]}">${x[1]}</button>`).join('');
 }
+
 function show(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const tb=document.querySelector(`[data-t="${id}"]`);if(tb)tb.classList.add('active');
-  ({dashboard:renderDashboard,attendance:renderAttendance,absentees:renderAbsentees,dayreport:renderDayReport,syllabus:renderSyllabus,marks:renderMarks,student:renderStudent,admin:renderAdmin,editrequests:renderEditRequests}[id]||(()=>{}))()
+  ({dashboard:renderDashboard,attendance:renderAttendance,absentees:renderAbsentees,dayreport:renderDayReport,syllabus:renderSyllabus,marks:renderMarks,student:renderStudent,admin:renderAdmin,editrequests:renderEditRequests}[id]||(()=>{}))();
 }
-function opts(el,arr,val='ClassID',txt='ClassName',all=''){if(!el)return;el.innerHTML=(all?`<option value="">${all}</option>`:'')+arr.map(x=>`<option value="${x[val]}">${x[txt]}${x.Section?' — '+x.Section:''}</option>`).join('')}
+
+function opts(el,arr,val='ClassID',txt='ClassName',all=''){
+  if(!el)return;
+  el.innerHTML=(all?`<option value="">${all}</option>`:'')+arr.map(x=>`<option value="${x[val]}">${x[txt]}${x.Section?' — '+x.Section:''}</option>`).join('');
+}
+
 function initFilters(){
   ['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id);if(e)e.value=today()});
-  opts(attClass,myAttendanceClasses());
-  opts(absClass,myAttendanceClasses(),'ClassID','ClassName','All Classes');
-  opts(exClass,db.classes);
-  opts(exTeacher,db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');
-  opts(adSylClass,db.classes);opts(adTeacher,db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');
-  opts(assignTeacher,db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');opts(assignClass,db.classes);
-  populateSubjects();populateSyllabusClasses();populateSyllabusSubjects();
+  opts(document.getElementById('attClass'),myAttendanceClasses());
+  opts(document.getElementById('absClass'),myAttendanceClasses(),'ClassID','ClassName','All Classes');
+  opts(document.getElementById('exClass'),db.classes);
+  opts(document.getElementById('exTeacher'),db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');
+  opts(document.getElementById('adSylClass'),db.classes);
+  opts(document.getElementById('adTeacher'),db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');
+  opts(document.getElementById('assignTeacher'),db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');
+  opts(document.getElementById('assignClass'),db.classes);
+  populateSubjects(); populateSyllabusClasses(); populateSyllabusSubjects();
 }
-function populateSubjects(){let subs=[...new Set((db.syllabus||[]).map(s=>s.Subject).filter(Boolean))];['exSubject','assignSubject'].forEach(id=>{let e=document.getElementById(id);if(e)e.innerHTML=subs.map(s=>`<option>${s}</option>`).join('')})}
-function populateSyllabusClasses(){let rows=mySyllabusRows();opts(sylClass,[...new Map(rows.map(s=>[s.ClassID,cls(s.ClassID)])).values()])}
-function populateSyllabusSubjects(){let rows=mySyllabusRows();if(sylClass.value)rows=rows.filter(r=>same(r.ClassID,sylClass.value));let subs=[...new Set(rows.map(r=>r.Subject).filter(Boolean))];sylSubject.innerHTML=subs.map(s=>`<option>${s}</option>`).join('')}
+
+function populateSubjects(){
+  let subs=[...new Set((db.syllabus||[]).map(s=>s.Subject).filter(Boolean))];
+  ['exSubject','assignSubject'].forEach(id=>{let e=document.getElementById(id);if(e)e.innerHTML=subs.map(s=>`<option>${s}</option>`).join('')});
+}
+function populateSyllabusClasses(){
+  let rows=mySyllabusRows();
+  opts(document.getElementById('sylClass'),[...new Map(rows.map(s=>[s.ClassID,cls(s.ClassID)])).values()]);
+}
+function populateSyllabusSubjects(){
+  let rows=mySyllabusRows(),cv=document.getElementById('sylClass').value;
+  if(cv) rows=rows.filter(r=>same(r.ClassID,cv));
+  let subs=[...new Set(rows.map(r=>r.Subject).filter(Boolean))];
+  document.getElementById('sylSubject').innerHTML=subs.map(s=>`<option>${s}</option>`).join('');
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────
 function renderDashboard(){
-  const d=today(),classes=myAttendanceClasses(),ids=classes.map(c=>String(c.ClassID)),att=db.attendance.filter(a=>same(a.Date,d)&&ids.includes(String(a.ClassID)));
-  const mp=att.filter(a=>same(a.Session,'Morning')&&a.Status==='P').length,ma=att.filter(a=>same(a.Session,'Morning')&&a.Status==='A').length,ap=att.filter(a=>same(a.Session,'Afternoon')&&a.Status==='P').length,aa=att.filter(a=>same(a.Session,'Afternoon')&&a.Status==='A').length;
-  dashStats.innerHTML=`<div class="stat"><div class="v">${classes.length}</div><div class="l">${currentUser.Role==='teacher'?'My Classes':'Total Classes'}</div></div><div class="stat"><div class="v">${mp}</div><div class="l">Morning Present</div></div><div class="stat"><div class="v">${ma}</div><div class="l">Morning Absent</div></div><div class="stat"><div class="v">${ap}</div><div class="l">Afternoon Present</div></div><div class="stat"><div class="v">${aa}</div><div class="l">Afternoon Absent</div></div>`;
-  todayClass.innerHTML=classes.map(c=>{let total=db.students.filter(s=>same(s.ClassID,c.ClassID)&&active(s.Active)).length;let mP=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Morning')&&x.Status==='P').length,mA=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Morning')&&x.Status==='A').length,aP=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Afternoon')&&x.Status==='P').length,aA=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Afternoon')&&x.Status==='A').length;return `<p style="padding:8px;border-bottom:1px solid var(--border)"><b>${c.ClassName}</b> (${total})<br>Morning: <span class="badge bgreen">${mP} Present</span> <span class="badge ${mA?'bred':'bgreen'}">${mA} Absent</span> &nbsp; Afternoon: <span class="badge bgreen">${aP} Present</span> <span class="badge ${aA?'bred':'bgreen'}">${aA} Absent</span></p>`}).join('')
+  const d=today(),classes=myAttendanceClasses(),ids=classes.map(c=>String(c.ClassID));
+  const att=db.attendance.filter(a=>same(a.Date,d)&&ids.includes(String(a.ClassID)));
+  const mp=att.filter(a=>same(a.Session,'Morning')&&a.Status==='P').length,ma=att.filter(a=>same(a.Session,'Morning')&&a.Status==='A').length;
+  const ap=att.filter(a=>same(a.Session,'Afternoon')&&a.Status==='P').length,aa=att.filter(a=>same(a.Session,'Afternoon')&&a.Status==='A').length;
+  document.getElementById('dashStats').innerHTML=`<div class="stat"><div class="v">${classes.length}</div><div class="l">${currentUser.Role==='teacher'?'My Classes':'Total Classes'}</div></div><div class="stat"><div class="v">${mp}</div><div class="l">Morning Present</div></div><div class="stat"><div class="v">${ma}</div><div class="l">Morning Absent</div></div><div class="stat"><div class="v">${ap}</div><div class="l">Afternoon Present</div></div><div class="stat"><div class="v">${aa}</div><div class="l">Afternoon Absent</div></div>`;
+  document.getElementById('todayClass').innerHTML=classes.map(c=>{
+    let total=db.students.filter(s=>same(s.ClassID,c.ClassID)&&active(s.Active)).length;
+    let mP=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Morning')&&x.Status==='P').length,mA=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Morning')&&x.Status==='A').length;
+    let aP=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Afternoon')&&x.Status==='P').length,aA=att.filter(x=>same(x.ClassID,c.ClassID)&&same(x.Session,'Afternoon')&&x.Status==='A').length;
+    return `<p style="padding:8px;border-bottom:1px solid var(--border)"><b>${c.ClassName}</b> (${total})<br>Morning: <span class="badge bgreen">${mP} Present</span> <span class="badge ${mA?'bred':'bgreen'}">${mA} Absent</span> &nbsp; Afternoon: <span class="badge bgreen">${aP} Present</span> <span class="badge ${aA?'bred':'bgreen'}">${aA} Absent</span></p>`;
+  }).join('');
 }
-function renderAttendance(){let c=attClass.value,d=attDate.value,ses=attSession.value;if(!c||!d){attGrid.innerHTML='<div class="card">Select class and date.</div>';return}attState={};let holiday=isHoliday(d),students=db.students.filter(s=>same(s.ClassID,c)&&active(s.Active)),ex=db.attendance.filter(a=>same(a.Date,d)&&same(a.Session,ses)&&same(a.ClassID,c)),saved=ex.length>0;ex.forEach(a=>attState[a.StudentID]=a.Status);attInfo.innerHTML=holiday?`<span class="badge borange">Holiday declared.</span>`:saved?`<span class="badge borange">Attendance already saved. Use edit request.</span>`:`<span class="badge bblue">Unmarked students auto-save as Present.</span>`;if(holiday){attGrid.innerHTML='<div class="card">Holiday — students are neither present nor absent.</div>';attActions.innerHTML='';return}attGrid.innerHTML=students.map(st=>`<div class="student-row ${attState[st.StudentID]==='P'?'present':attState[st.StudentID]==='A'?'absent':''}" id="r_${st.StudentID}"><div><b>${st.StudentName}</b><br><span style="color:var(--ink3)">Roll ${st.RollNo||''} | ${st.Village||''} | ${st.ParentPhone||''}</span></div><div>${saved?editControls(st):normalControls(st)}</div></div>`).join('')||'<div class="card">No active students found.</div>';attActions.innerHTML=saved?`<button class="btn green" onclick="sendAbsentSMS()">📩 Send SMS to Absent Parents</button>`:`<button class="btn" onclick="markAll('P')">All Present</button> <button class="btn red" onclick="markAll('A')">All Absent</button> <button class="btn primary" onclick="saveAttendance()">Save Attendance</button>`}
+
+// ─── Attendance ───────────────────────────────────────────────────
+function renderAttendance(){
+  let c=document.getElementById('attClass').value,d=document.getElementById('attDate').value,ses=document.getElementById('attSession').value;
+  if(!c||!d){document.getElementById('attGrid').innerHTML='<div class="card">Select class and date.</div>';return}
+  attState={};
+  let holiday=isHoliday(d),students=db.students.filter(s=>same(s.ClassID,c)&&active(s.Active));
+  let ex=db.attendance.filter(a=>same(a.Date,d)&&same(a.Session,ses)&&same(a.ClassID,c)),saved=ex.length>0;
+  ex.forEach(a=>attState[a.StudentID]=a.Status);
+  document.getElementById('attInfo').innerHTML=holiday?`<span class="badge borange">Holiday declared.</span>`:saved?`<span class="badge borange">Attendance already saved. Use edit request.</span>`:`<span class="badge bblue">Unmarked students auto-save as Present.</span>`;
+  if(holiday){document.getElementById('attGrid').innerHTML='<div class="card">Holiday.</div>';document.getElementById('attActions').innerHTML='';return}
+  document.getElementById('attGrid').innerHTML=students.map(st=>`<div class="student-row ${attState[st.StudentID]==='P'?'present':attState[st.StudentID]==='A'?'absent':''}" id="r_${st.StudentID}"><div><b>${st.StudentName}</b><br><span style="color:var(--ink3)">Roll ${st.RollNo||''} | ${st.Village||''} | ${st.ParentPhone||''}</span></div><div>${saved?editControls(st):normalControls(st)}</div></div>`).join('')||'<div class="card">No active students.</div>';
+  document.getElementById('attActions').innerHTML=saved?`<button class="btn green" onclick="sendAbsentSMS()">📩 Send SMS to Absent Parents</button>`:`<button class="btn" onclick="markAll('P')">All Present</button> <button class="btn red" onclick="markAll('A')">All Absent</button> <button class="btn primary" onclick="saveAttendance()">Save Attendance</button>`;
+}
 function normalControls(st){return `<button class="btn green sm" onclick="setAtt('${st.StudentID}','P')">Present</button> <button class="btn red sm" onclick="setAtt('${st.StudentID}','A')">Absent</button>`}
 function editControls(st){let old=attState[st.StudentID]||'P';return `<select id="new_${st.StudentID}" style="width:110px"><option value="P" ${old==='P'?'selected':''}>Present</option><option value="A" ${old==='A'?'selected':''}>Absent</option></select> <input id="reason_${st.StudentID}" placeholder="Reason" style="width:160px"> <button class="btn sm" onclick="sendEditRequest('${st.StudentID}')">Request Edit</button>`}
 function setAtt(id,st){attState[id]=st;let r=document.getElementById('r_'+id);if(r)r.className='student-row '+(st==='P'?'present':'absent')}
-function markAll(st){db.students.filter(s=>same(s.ClassID,attClass.value)&&active(s.Active)).forEach(x=>setAtt(x.StudentID,st))}
-async function saveAttendance(){let c=attClass.value,d=attDate.value,ses=attSession.value;let rows=db.students.filter(s=>same(s.ClassID,c)&&active(s.Active)).map(st=>({Date:d,Session:ses,ClassID:c,StudentID:st.StudentID,Status:attState[st.StudentID]||'P'}));try{await api('saveAttendance',{records:rows});toast('Attendance saved');rows.forEach(r=>db.attendance.push({...r,MarkedBy:currentUser.UserID}));renderAttendance();renderDashboard()}catch(e){toast(e.message)}}
-async function sendEditRequest(sid){try{await api('createEditRequest',{Date:attDate.value,Session:attSession.value,ClassID:attClass.value,StudentID:sid,OldStatus:attState[sid]||'',NewStatus:document.getElementById('new_'+sid).value,Reason:document.getElementById('reason_'+sid).value});toast('Edit request sent');await load();renderAttendance()}catch(e){toast(e.message)}}
-async function declareHoliday(){try{await api('declareHoliday',{Date:attDate.value});toast('Holiday declared');await load();renderAttendance()}catch(e){toast(e.message)}}
-async function removeHoliday(){try{await api('removeHoliday',{Date:attDate.value});toast('Holiday removed');await load();renderAttendance()}catch(e){toast(e.message)}}
-async function sendAbsentSMS(){if(!confirm('Send absence SMS to parents of absent students?'))return;try{const r=await api('sendAbsentSMS',{Date:attDate.value,Session:attSession.value,ClassID:attClass.value});toast(`SMS — sent: ${r.data.sent}, skipped: ${r.data.skipped}, failed: ${r.data.failed}`)}catch(e){toast(e.message)}}
-async function sendMarksSMS(){if(!confirm('Send marks SMS to all parents for this exam?'))return;try{const r=await api('sendMarksSMS',{ExamID:markExam.value});toast(`SMS — sent: ${r.data.sent}, skipped: ${r.data.skipped}, failed: ${r.data.failed}`)}catch(e){toast(e.message)}}
-function renderAbsentees(){let d=absDate.value||today(),c=absClass.value;let rows=db.attendance.filter(a=>same(a.Date,d)&&a.Status==='A'&&(!c||same(a.ClassID,c)));let summary=`<tr><td colspan="9"><b>Morning Absentees:</b> ${rows.filter(r=>same(r.Session,'Morning')).length} &nbsp; | &nbsp; <b>Afternoon Absentees:</b> ${rows.filter(r=>same(r.Session,'Afternoon')).length}</td></tr>`;absBody.innerHTML=summary+rows.map(a=>{let st=stud(a.StudentID),cl=cls(a.ClassID),start=d.slice(0,8)+'01';let m=db.attendance.filter(x=>same(x.StudentID,a.StudentID)&&x.Status==='A'&&same(x.Session,'Morning')&&x.Date>=start&&x.Date<=d).length;let af=db.attendance.filter(x=>same(x.StudentID,a.StudentID)&&x.Status==='A'&&same(x.Session,'Afternoon')&&x.Date>=start&&x.Date<=d).length;return `<tr><td>${a.Date}</td><td>${a.Session}</td><td>${cl.ClassName}</td><td>${st.RollNo||''}</td><td>${st.StudentName}</td><td>${st.Village||''}</td><td>${st.ParentPhone||''}</td><td>${user(a.MarkedBy).Name}</td><td><span class="badge bblue">M:${m}</span> <span class="badge borange">A:${af}</span></td></tr>`}).join('')}
-function renderDayReport(){let d=repDate.value||today(),ses=repSession.value,classes=myAttendanceClasses(),tot={t:0,p:0,a:0,n:0};repBody.innerHTML=classes.map(c=>{let studs=db.students.filter(s=>same(s.ClassID,c.ClassID)&&active(s.Active)),rec=db.attendance.filter(a=>same(a.Date,d)&&same(a.Session,ses)&&same(a.ClassID,c.ClassID)),p=rec.filter(x=>x.Status==='P').length,a=rec.filter(x=>x.Status==='A').length,n=Math.max(studs.length-p-a,0);tot.t+=studs.length;tot.p+=p;tot.a+=a;tot.n+=n;return `<tr><td>${c.ClassName}</td><td>${c.Section||''}</td><td>${studs.length}</td><td>${p}</td><td>${a}</td><td>${n}</td></tr>`}).join('');repStats.innerHTML=`<div class="stat"><div class="v">${tot.t}</div><div class="l">Total</div></div><div class="stat"><div class="v">${tot.p}</div><div class="l">Present</div></div><div class="stat"><div class="v">${tot.a}</div><div class="l">Absent</div></div><div class="stat"><div class="v">${tot.n}</div><div class="l">Not Marked</div></div>`}
-function renderEditRequests(){editReqBody.innerHTML=(db.editRequests||[]).map(r=>`<tr><td>${r.Date}</td><td>${r.Session}</td><td>${cls(r.ClassID).ClassName}</td><td>${stud(r.StudentID).StudentName}</td><td>${r.OldStatus}</td><td>${r.NewStatus}</td><td>${r.Reason}</td><td>${r.Status}</td><td>${clean(r.Status)==='pending'?`<button class="btn green sm" onclick="approveReq('${r.RequestID}')">Approve</button> <button class="btn red sm" onclick="rejectReq('${r.RequestID}')">Reject</button>`:''}</td></tr>`).join('')||'<tr><td colspan="9">No requests</td></tr>'}
-async function approveReq(id){try{await api('approveEditRequest',{RequestID:id});toast('Approved');await load();renderEditRequests()}catch(e){toast(e.message)}}
-async function rejectReq(id){try{await api('rejectEditRequest',{RequestID:id});toast('Rejected');await load();renderEditRequests()}catch(e){toast(e.message)}}
-function renderSyllabus(){let rows=mySyllabusRows(),cv=sylClass.value,sub=sylSubject.value;if(cv)rows=rows.filter(r=>same(r.ClassID,cv));if(sub)rows=rows.filter(r=>same(r.Subject,sub));if(!rows.length){sylChapter.innerHTML='';sylBody.innerHTML='<tr><td colspan="7">No syllabus assigned.</td></tr>';return}sylChapter.innerHTML=rows.map(r=>`<option value="${r.SyllabusID}">${r.Chapter}</option>`).join('');sylBody.innerHTML=rows.map(r=>`<tr><td>${cls(r.ClassID).ClassName}</td><td>${r.Subject}</td><td>${r.Chapter}</td><td>${user(r.TeacherID).Name}</td><td>${r.Periods||''}</td><td><span class="badge ${r.Status==='Completed'?'bgreen':'borange'}">${r.Status||'Pending'}</span></td><td>${r.UpdatedDate||''}</td></tr>`).join('')}
-async function updateSyllabus(st){try{if(!sylChapter.value)throw new Error('Select chapter');await api('saveSyllabusStatus',{SyllabusID:sylChapter.value,Status:st});toast('Updated');await load();populateSyllabusClasses();populateSyllabusSubjects();renderSyllabus()}catch(e){toast(e.message)}}
-function renderMarks(){examCreate.classList.toggle('hide',currentUser.Role!=='admin');let exams=myExams();markExam.innerHTML=exams.map(e=>`<option value="${e.ExamID}">${e.ExamName} - ${cls(e.ClassID).ClassName} - ${e.Subject}</option>`).join('');renderMarksEntry();marksReport.innerHTML=db.marks.map(m=>{let e=db.exams.find(x=>same(x.ExamID,m.ExamID))||{};return `<tr><td>${e.ExamName||m.ExamID}</td><td>${cls(e.ClassID).ClassName}</td><td>${e.Subject||''}</td><td>${stud(m.StudentID).StudentName}</td><td>${m.MarksObtained}</td><td>${m.Status}</td><td>${user(m.EnteredBy).Name}</td></tr>`}).join('')}
-async function createExam(){try{await api('createExam',{ExamName:exName.value,ClassID:exClass.value,Subject:exSubject.value,MaxMarks:exMax.value,ExamDate:exDate.value,MarksTeacherID:exTeacher.value});toast('Exam created');await load();renderMarks()}catch(e){toast(e.message)}}
-function renderMarksEntry(){let e=db.exams.find(x=>same(x.ExamID,markExam.value));if(!e){markGrid.innerHTML='No exams assigned';return}let studs=db.students.filter(s=>same(s.ClassID,e.ClassID)&&active(s.Active));markGrid.innerHTML=studs.map(s=>{let m=db.marks.find(x=>same(x.ExamID,e.ExamID)&&same(x.StudentID,s.StudentID))||{};return `<div class="student-row"><div><b>${s.StudentName}</b><br>${s.RollNo||''}</div><div><input style="width:80px" id="mk_${s.StudentID}" value="${m.MarksObtained||''}" placeholder="Marks"> <label><input type="checkbox" id="ab_${s.StudentID}" ${m.Status==='Absent'?'checked':''}> Absent</label></div></div>`}).join('')+'<button class="btn primary" onclick="saveMarks()">Save Marks</button> <button class="btn green" onclick="sendMarksSMS()">📩 Send Marks SMS to Parents</button>'}
-async function saveMarks(){let e=db.exams.find(x=>same(x.ExamID,markExam.value));let rows=db.students.filter(s=>same(s.ClassID,e.ClassID)&&active(s.Active)).map(s=>({MarkID:e.ExamID+'_'+s.StudentID,ExamID:e.ExamID,StudentID:s.StudentID,MarksObtained:document.getElementById('ab_'+s.StudentID).checked?'':document.getElementById('mk_'+s.StudentID).value,Status:document.getElementById('ab_'+s.StudentID).checked?'Absent':'Present'}));try{await api('saveMarks',{records:rows});toast('Marks saved');await load();renderMarks()}catch(er){toast(er.message)}}
-function renderStudent(){let sid=currentUser.StudentID,att=db.attendance.filter(a=>same(a.StudentID,sid)),p=att.filter(a=>a.Status==='P').length,a=att.filter(a=>a.Status==='A').length;studentStats.innerHTML=`<div class="stat"><div class="v">${p}</div><div class="l">Present</div></div><div class="stat"><div class="v">${a}</div><div class="l">Absent</div></div><div class="stat"><div class="v">${att.length?Math.round(p/att.length*100):0}%</div><div class="l">Attendance %</div></div>`;myAtt.innerHTML=att.map(x=>`<tr><td>${x.Date}</td><td>${x.Session}</td><td>${x.Status}</td></tr>`).join('');myMarks.innerHTML=db.marks.filter(m=>same(m.StudentID,sid)).map(m=>{let e=db.exams.find(x=>same(x.ExamID,m.ExamID))||{};return `<tr><td>${e.ExamName||''}</td><td>${e.Subject||''}</td><td>${m.Status==='Absent'?'Absent':m.MarksObtained+'/'+(e.MaxMarks||'')}</td><td>${m.Status}</td></tr>`}).join('')}
-function renderAdmin(){usersBody.innerHTML=db.users.map(u=>`<tr><td>${u.UserID}</td><td>${u.Name}</td><td>${u.Username}</td><td>${u.Role}</td><td>${u.Active}</td></tr>`).join('');assignBody.innerHTML=db.assignments.map(a=>`<tr><td>${a.AssignmentID}</td><td>${user(a.TeacherID).Name}</td><td>${cls(a.ClassID).ClassName}</td><td>${a.Subject}</td><td>${a.CanTakeAttendance}</td><td>${a.CanUpdateSyllabus}</td></tr>`).join('')}
-async function addAdminUser(){try{await api('saveUser',{Name:newUserName.value,Username:newUsername.value,Password:newUserPass.value,Role:newUserRole.value,Active:'YES'});toast('User saved');await load();initFilters();renderAdmin()}catch(e){toast(e.message)}}
-async function addAssignment(){try{await api('saveTeacherAssignment',{TeacherID:assignTeacher.value,ClassID:assignClass.value,Subject:assignSubject.value,CanTakeAttendance:assignAttendance.value,CanUpdateSyllabus:assignSyllabus.value,Active:'YES'});toast('Assignment saved');await load();initFilters();renderAdmin()}catch(e){toast(e.message)}}
-async function addSyllabus(){try{await api('upsertSyllabus',{ClassID:adSylClass.value,Subject:adSubject.value,Chapter:adChapter.value,TeacherID:adTeacher.value,Periods:adPeriods.value,Status:'Pending'});toast('Syllabus added');await load();initFilters();renderAdmin()}catch(e){toast(e.message)}}
+function markAll(st){db.students.filter(s=>same(s.ClassID,document.getElementById('attClass').value)&&active(s.Active)).forEach(x=>setAtt(x.StudentID,st))}
+
+async function saveAttendance(){
+  let c=document.getElementById('attClass').value,d=document.getElementById('attDate').value,ses=document.getElementById('attSession').value;
+  let rows=db.students.filter(s=>same(s.ClassID,c)&&active(s.Active)).map(st=>({Date:d,Session:ses,ClassID:c,StudentID:st.StudentID,Status:attState[st.StudentID]||'P'}));
+  // Optimistic update — show success immediately, sync in background
+  rows.forEach(r=>db.attendance.push({...r,MarkedBy:currentUser.UserID}));
+  saveCache(db); renderAttendance(); renderDashboard();
+  toast('Saving attendance…');
+  try{
+    await api('saveAttendance',{records:rows},true);
+    toast('✅ Attendance saved');
+  }catch(e){
+    // Rollback optimistic update
+    rows.forEach(r=>{const i=db.attendance.findIndex(a=>same(a.Date,r.Date)&&same(a.Session,r.Session)&&same(a.ClassID,r.ClassID)&&same(a.StudentID,r.StudentID));if(i>-1)db.attendance.splice(i,1)});
+    saveCache(db); renderAttendance();
+    toast('❌ '+e.message);
+  }
+}
+
+async function sendEditRequest(sid){
+  try{
+    await api('createEditRequest',{Date:document.getElementById('attDate').value,Session:document.getElementById('attSession').value,ClassID:document.getElementById('attClass').value,StudentID:sid,OldStatus:attState[sid]||'',NewStatus:document.getElementById('new_'+sid).value,Reason:document.getElementById('reason_'+sid).value});
+    toast('Edit request sent');
+    await load(true); renderAttendance();
+  }catch(e){toast(e.message)}
+}
+async function declareHoliday(){
+  try{await api('declareHoliday',{Date:document.getElementById('attDate').value});toast('Holiday declared');await load(true);renderAttendance()}catch(e){toast(e.message)}
+}
+async function removeHoliday(){
+  try{await api('removeHoliday',{Date:document.getElementById('attDate').value});toast('Holiday removed');await load(true);renderAttendance()}catch(e){toast(e.message)}
+}
+async function sendAbsentSMS(){
+  if(!confirm('Send absence SMS to parents of absent students?'))return;
+  try{const r=await api('sendAbsentSMS',{Date:document.getElementById('attDate').value,Session:document.getElementById('attSession').value,ClassID:document.getElementById('attClass').value});toast(`SMS — sent: ${r.data.sent}, skipped: ${r.data.skipped}, failed: ${r.data.failed}`)}catch(e){toast(e.message)}
+}
+
+// ─── Absentees ────────────────────────────────────────────────────
+function renderAbsentees(){
+  let d=document.getElementById('absDate').value||today(),c=document.getElementById('absClass').value;
+  let rows=db.attendance.filter(a=>same(a.Date,d)&&a.Status==='A'&&(!c||same(a.ClassID,c)));
+  let summary=`<tr><td colspan="9"><b>Morning Absentees:</b> ${rows.filter(r=>same(r.Session,'Morning')).length} &nbsp;|&nbsp; <b>Afternoon Absentees:</b> ${rows.filter(r=>same(r.Session,'Afternoon')).length}</td></tr>`;
+  document.getElementById('absBody').innerHTML=summary+rows.map(a=>{
+    let st=stud(a.StudentID),cl=cls(a.ClassID),start=d.slice(0,8)+'01';
+    let m=db.attendance.filter(x=>same(x.StudentID,a.StudentID)&&x.Status==='A'&&same(x.Session,'Morning')&&x.Date>=start&&x.Date<=d).length;
+    let af=db.attendance.filter(x=>same(x.StudentID,a.StudentID)&&x.Status==='A'&&same(x.Session,'Afternoon')&&x.Date>=start&&x.Date<=d).length;
+    return `<tr><td>${a.Date}</td><td>${a.Session}</td><td>${cl.ClassName}</td><td>${st.RollNo||''}</td><td>${st.StudentName}</td><td>${st.Village||''}</td><td>${st.ParentPhone||''}</td><td>${user(a.MarkedBy).Name}</td><td><span class="badge bblue">M:${m}</span> <span class="badge borange">A:${af}</span></td></tr>`;
+  }).join('');
+}
+
+// ─── Day Report ───────────────────────────────────────────────────
+function renderDayReport(){
+  let d=document.getElementById('repDate').value||today(),ses=document.getElementById('repSession').value,classes=myAttendanceClasses(),tot={t:0,p:0,a:0,n:0};
+  document.getElementById('repBody').innerHTML=classes.map(c=>{
+    let studs=db.students.filter(s=>same(s.ClassID,c.ClassID)&&active(s.Active)),rec=db.attendance.filter(a=>same(a.Date,d)&&same(a.Session,ses)&&same(a.ClassID,c.ClassID));
+    let p=rec.filter(x=>x.Status==='P').length,a=rec.filter(x=>x.Status==='A').length,n=Math.max(studs.length-p-a,0);
+    tot.t+=studs.length;tot.p+=p;tot.a+=a;tot.n+=n;
+    return `<tr><td>${c.ClassName}</td><td>${c.Section||''}</td><td>${studs.length}</td><td>${p}</td><td>${a}</td><td>${n}</td></tr>`;
+  }).join('');
+  document.getElementById('repStats').innerHTML=`<div class="stat"><div class="v">${tot.t}</div><div class="l">Total</div></div><div class="stat"><div class="v">${tot.p}</div><div class="l">Present</div></div><div class="stat"><div class="v">${tot.a}</div><div class="l">Absent</div></div><div class="stat"><div class="v">${tot.n}</div><div class="l">Not Marked</div></div>`;
+}
+
+// ─── Edit Requests ────────────────────────────────────────────────
+function renderEditRequests(){
+  document.getElementById('editReqBody').innerHTML=(db.editRequests||[]).map(r=>`<tr><td>${r.Date}</td><td>${r.Session}</td><td>${cls(r.ClassID).ClassName}</td><td>${stud(r.StudentID).StudentName}</td><td>${r.OldStatus}</td><td>${r.NewStatus}</td><td>${r.Reason}</td><td>${r.Status}</td><td>${clean(r.Status)==='pending'?`<button class="btn green sm" onclick="approveReq('${r.RequestID}')">Approve</button> <button class="btn red sm" onclick="rejectReq('${r.RequestID}')">Reject</button>`:''}</td></tr>`).join('')||'<tr><td colspan="9">No requests</td></tr>';
+}
+async function approveReq(id){try{await api('approveEditRequest',{RequestID:id});toast('Approved');await load(true);renderEditRequests()}catch(e){toast(e.message)}}
+async function rejectReq(id){try{await api('rejectEditRequest',{RequestID:id});toast('Rejected');await load(true);renderEditRequests()}catch(e){toast(e.message)}}
+
+// ─── Syllabus ─────────────────────────────────────────────────────
+function renderSyllabus(){
+  let rows=mySyllabusRows(),cv=document.getElementById('sylClass').value,sub=document.getElementById('sylSubject').value;
+  if(cv) rows=rows.filter(r=>same(r.ClassID,cv));
+  if(sub) rows=rows.filter(r=>same(r.Subject,sub));
+  if(!rows.length){document.getElementById('sylChapter').innerHTML='';document.getElementById('sylBody').innerHTML='<tr><td colspan="7">No syllabus assigned.</td></tr>';return}
+  document.getElementById('sylChapter').innerHTML=rows.map(r=>`<option value="${r.SyllabusID}">${r.Chapter}</option>`).join('');
+  document.getElementById('sylBody').innerHTML=rows.map(r=>`<tr><td>${cls(r.ClassID).ClassName}</td><td>${r.Subject}</td><td>${r.Chapter}</td><td>${user(r.TeacherID).Name}</td><td>${r.Periods||''}</td><td><span class="badge ${r.Status==='Completed'?'bgreen':'borange'}">${r.Status||'Pending'}</span></td><td>${r.UpdatedDate||''}</td></tr>`).join('');
+}
+async function updateSyllabus(st){
+  try{
+    if(!document.getElementById('sylChapter').value) throw new Error('Select chapter');
+    await api('saveSyllabusStatus',{SyllabusID:document.getElementById('sylChapter').value,Status:st});
+    toast('Updated');await load(true);populateSyllabusClasses();populateSyllabusSubjects();renderSyllabus();
+  }catch(e){toast(e.message)}
+}
+
+// ─── Marks ────────────────────────────────────────────────────────
+function renderMarks(){
+  document.getElementById('examCreate').classList.toggle('hide',currentUser.Role!=='admin');
+  let exams=myExams();
+  document.getElementById('markExam').innerHTML=exams.map(e=>`<option value="${e.ExamID}">${e.ExamName} - ${cls(e.ClassID).ClassName} - ${e.Subject}</option>`).join('');
+  renderMarksEntry();
+  document.getElementById('marksReport').innerHTML=db.marks.map(m=>{let e=db.exams.find(x=>same(x.ExamID,m.ExamID))||{};return `<tr><td>${e.ExamName||m.ExamID}</td><td>${cls(e.ClassID).ClassName}</td><td>${e.Subject||''}</td><td>${stud(m.StudentID).StudentName}</td><td>${m.MarksObtained}</td><td>${m.Status}</td><td>${user(m.EnteredBy).Name}</td></tr>`}).join('');
+}
+async function createExam(){
+  try{
+    await api('createExam',{ExamName:document.getElementById('exName').value,ClassID:document.getElementById('exClass').value,Subject:document.getElementById('exSubject').value,MaxMarks:document.getElementById('exMax').value,ExamDate:document.getElementById('exDate').value,MarksTeacherID:document.getElementById('exTeacher').value});
+    toast('Exam created');await load(true);renderMarks();
+  }catch(e){toast(e.message)}
+}
+function renderMarksEntry(){
+  let e=db.exams.find(x=>same(x.ExamID,document.getElementById('markExam').value));
+  if(!e){document.getElementById('markGrid').innerHTML='No exams assigned';return}
+  let studs=db.students.filter(s=>same(s.ClassID,e.ClassID)&&active(s.Active));
+  document.getElementById('markGrid').innerHTML=studs.map(s=>{let m=db.marks.find(x=>same(x.ExamID,e.ExamID)&&same(x.StudentID,s.StudentID))||{};return `<div class="student-row"><div><b>${s.StudentName}</b><br>${s.RollNo||''}</div><div><input style="width:80px" id="mk_${s.StudentID}" value="${m.MarksObtained||''}" placeholder="Marks"> <label><input type="checkbox" id="ab_${s.StudentID}" ${m.Status==='Absent'?'checked':''}> Absent</label></div></div>`}).join('')+'<button class="btn primary" onclick="saveMarks()">Save Marks</button> <button class="btn green" onclick="sendMarksSMS()">📩 Send Marks SMS to Parents</button>';
+}
+async function saveMarks(){
+  let e=db.exams.find(x=>same(x.ExamID,document.getElementById('markExam').value));
+  let rows=db.students.filter(s=>same(s.ClassID,e.ClassID)&&active(s.Active)).map(s=>({MarkID:e.ExamID+'_'+s.StudentID,ExamID:e.ExamID,StudentID:s.StudentID,MarksObtained:document.getElementById('ab_'+s.StudentID).checked?'':document.getElementById('mk_'+s.StudentID).value,Status:document.getElementById('ab_'+s.StudentID).checked?'Absent':'Present'}));
+  try{await api('saveMarks',{records:rows});toast('✅ Marks saved');await load(true);renderMarks()}catch(er){toast(er.message)}
+}
+async function sendMarksSMS(){
+  if(!confirm('Send marks SMS to all parents for this exam?'))return;
+  try{const r=await api('sendMarksSMS',{ExamID:document.getElementById('markExam').value});toast(`SMS — sent: ${r.data.sent}, skipped: ${r.data.skipped}, failed: ${r.data.failed}`)}catch(e){toast(e.message)}
+}
+
+// ─── Student ──────────────────────────────────────────────────────
+function renderStudent(){
+  let sid=currentUser.StudentID,att=db.attendance.filter(a=>same(a.StudentID,sid)),p=att.filter(a=>a.Status==='P').length,a=att.filter(a=>a.Status==='A').length;
+  document.getElementById('studentStats').innerHTML=`<div class="stat"><div class="v">${p}</div><div class="l">Present</div></div><div class="stat"><div class="v">${a}</div><div class="l">Absent</div></div><div class="stat"><div class="v">${att.length?Math.round(p/att.length*100):0}%</div><div class="l">Attendance %</div></div>`;
+  document.getElementById('myAtt').innerHTML=att.map(x=>`<tr><td>${x.Date}</td><td>${x.Session}</td><td>${x.Status}</td></tr>`).join('');
+  document.getElementById('myMarks').innerHTML=db.marks.filter(m=>same(m.StudentID,sid)).map(m=>{let e=db.exams.find(x=>same(x.ExamID,m.ExamID))||{};return `<tr><td>${e.ExamName||''}</td><td>${e.Subject||''}</td><td>${m.Status==='Absent'?'Absent':m.MarksObtained+'/'+(e.MaxMarks||'')}</td><td>${m.Status}</td></tr>`}).join('');
+}
+
+// ─── Admin ────────────────────────────────────────────────────────
+function renderAdmin(){
+  document.getElementById('usersBody').innerHTML=db.users.map(u=>`<tr><td>${u.UserID}</td><td>${u.Name}</td><td>${u.Username}</td><td>${u.Role}</td><td>${u.Active}</td></tr>`).join('');
+  document.getElementById('assignBody').innerHTML=db.assignments.map(a=>`<tr><td>${a.AssignmentID}</td><td>${user(a.TeacherID).Name}</td><td>${cls(a.ClassID).ClassName}</td><td>${a.Subject}</td><td>${a.CanTakeAttendance}</td><td>${a.CanUpdateSyllabus}</td></tr>`).join('');
+}
+async function addAdminUser(){
+  try{await api('saveUser',{Name:document.getElementById('newUserName').value,Username:document.getElementById('newUsername').value,Password:document.getElementById('newUserPass').value,Role:document.getElementById('newUserRole').value,Active:'YES'});toast('User saved');await load(true);initFilters();renderAdmin()}catch(e){toast(e.message)}
+}
+async function addAssignment(){
+  try{await api('saveTeacherAssignment',{TeacherID:document.getElementById('assignTeacher').value,ClassID:document.getElementById('assignClass').value,Subject:document.getElementById('assignSubject').value,CanTakeAttendance:document.getElementById('assignAttendance').value,CanUpdateSyllabus:document.getElementById('assignSyllabus').value,Active:'YES'});toast('Assignment saved');await load(true);initFilters();renderAdmin()}catch(e){toast(e.message)}
+}
+async function addSyllabus(){
+  try{await api('upsertSyllabus',{ClassID:document.getElementById('adSylClass').value,Subject:document.getElementById('adSubject').value,Chapter:document.getElementById('adChapter').value,TeacherID:document.getElementById('adTeacher').value,Periods:document.getElementById('adPeriods').value,Status:'Pending'});toast('Syllabus added');await load(true);initFilters();renderAdmin()}catch(e){toast(e.message)}
+}
 </script>
 </body>
 </html>
