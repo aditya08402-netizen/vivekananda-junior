@@ -173,6 +173,9 @@ async function loginUser(){
     document.getElementById('who').textContent=(currentUser.Name||currentUser.StudentName||currentUser.Username)+' ('+currentUser.Role+')';
     initFilters(); buildTabs();
     show(currentUser.Role==='student'?'student':'dashboard');
+    // Login returns scope:'min' (no syllabus/exams/marks/editRequests) for speed.
+    // Fetch the full dataset in the background so those tabs are populated.
+    if(currentUser.Role!=='student') silentRefresh();
   }catch(e){
     errEl.textContent=e.message||'Login failed. Please try again.';
   }finally{
@@ -245,10 +248,19 @@ function opts(el,arr,val='ClassID',txt='ClassName',all=''){
   el.innerHTML=(all?`<option value="">${all}</option>`:'')+arr.map(x=>`<option value="${x[val]}">${x[txt]}${x.Section?' — '+x.Section:''}</option>`).join('');
 }
 
+// Re-fill a <select> but keep the user's current choice if it still exists.
+function optsKeep(el,arr,val='ClassID',txt='ClassName',all=''){
+  if(!el)return;
+  const prev=el.value;
+  opts(el,arr,val,txt,all);
+  if(prev && [...el.options].some(o=>o.value===prev)) el.value=prev;
+}
+
 function initFilters(){
-  ['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id);if(e)e.value=today()});
-  opts(document.getElementById('attClass'),myAttendanceClasses());
-  opts(document.getElementById('absClass'),myAttendanceClasses(),'ClassID','ClassName','All Classes');
+  // Only set dates the FIRST time - never overwrite a date the user picked.
+  ['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id);if(e&&!e.value)e.value=today()});
+  optsKeep(document.getElementById('attClass'),myAttendanceClasses());
+  optsKeep(document.getElementById('absClass'),myAttendanceClasses(),'ClassID','ClassName','All Classes');
   opts(document.getElementById('exClass'),db.classes);
   opts(document.getElementById('exTeacher'),db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');
   opts(document.getElementById('adSylClass'),db.classes);
@@ -264,13 +276,14 @@ function populateSubjects(){
 }
 function populateSyllabusClasses(){
   let rows=mySyllabusRows();
-  opts(document.getElementById('sylClass'),[...new Map(rows.map(s=>[s.ClassID,cls(s.ClassID)])).values()]);
+  optsKeep(document.getElementById('sylClass'),[...new Map(rows.map(s=>[s.ClassID,cls(s.ClassID)])).values()]);
 }
 function populateSyllabusSubjects(){
-  let rows=mySyllabusRows(),cv=document.getElementById('sylClass').value;
+  let rows=mySyllabusRows(),el=document.getElementById('sylSubject'),cv=document.getElementById('sylClass').value,prev=el.value;
   if(cv) rows=rows.filter(r=>same(r.ClassID,cv));
   let subs=[...new Set(rows.map(r=>r.Subject).filter(Boolean))];
-  document.getElementById('sylSubject').innerHTML=subs.map(s=>`<option>${s}</option>`).join('');
+  el.innerHTML=subs.map(s=>`<option>${s}</option>`).join('');
+  if(prev && subs.includes(prev)) el.value=prev;
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────
