@@ -57,7 +57,7 @@ table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px;bor
 <div id="app" class="app">
   <div class="topbar">
     <div class="brand" style="margin:0">🎓 SRI VIVEKANANDA</div>
-    <div><span id="who" style="color:var(--ink3)"></span> <button class="btn sm" onclick="logout()">Logout</button></div>
+    <div><span id="who" style="color:var(--ink3)"></span> <button class="btn sm" onclick="manualRefresh()">&#8635; Refresh</button> <button class="btn sm" onclick="logout()">Logout</button></div>
   </div>
   <div id="tabs" class="tabs"></div>
   <main class="main">
@@ -136,6 +136,17 @@ window.addEventListener('DOMContentLoaded', ()=>{
   }
 });
 
+async function manualRefresh(){
+  try{
+    const r=await api('load',{});
+    db=r.data||{}; normalizeDb(); saveCache(db);
+    const cur=document.querySelector('.page.active');
+    initFilters(); buildTabs();
+    if(cur) show(cur.id);
+    toast('Data refreshed');
+  }catch(e){ toast(e.message) }
+}
+
 async function silentRefresh(){
   try{
     const r=await api('load',{},true);
@@ -201,7 +212,7 @@ function normalizeDb(){
   db.syllabus=db.syllabus||[];db.exams=db.exams||[];db.marks=db.marks||[];db.editRequests=db.editRequests||[];
 }
 
-function cls(id){return (db.classes||[]).find(c=>same(c.ClassID,id))||{ClassName:id,Section:'—'}}
+function cls(id){return (db.classes||[]).find(c=>same(c.ClassID,id))||{ClassID:id,ClassName:id,Section:''}}
 function user(id){return (db.users||[]).find(u=>same(u.UserID,id))||{Name:id}}
 function stud(id){return (db.students||[]).find(s=>same(s.StudentID,id))||{StudentName:id}}
 function isHoliday(d){return (db.holidays||[]).some(h=>same(h.Date,d))}
@@ -275,14 +286,20 @@ function populateSubjects(){
   ['exSubject','assignSubject'].forEach(id=>{let e=document.getElementById(id);if(e)e.innerHTML=subs.map(s=>`<option>${s}</option>`).join('')});
 }
 function populateSyllabusClasses(){
-  let rows=mySyllabusRows();
-  optsKeep(document.getElementById('sylClass'),[...new Map(rows.map(s=>[s.ClassID,cls(s.ClassID)])).values()]);
+  const rows=mySyllabusRows();
+  // Build straight from the syllabus rows so a missing Classes entry can't blank this out.
+  const list=[...new Map(rows.map(s=>{
+    const c=cls(s.ClassID);
+    return [String(s.ClassID),{ClassID:s.ClassID, ClassName:(c.ClassName||s.ClassID), Section:(c.Section||'')}];
+  })).values()];
+  optsKeep(document.getElementById('sylClass'),list,'ClassID','ClassName','All Classes');
 }
 function populateSyllabusSubjects(){
-  let rows=mySyllabusRows(),el=document.getElementById('sylSubject'),cv=document.getElementById('sylClass').value,prev=el.value;
+  let rows=mySyllabusRows();
+  const el=document.getElementById('sylSubject'), cv=document.getElementById('sylClass').value, prev=el.value;
   if(cv) rows=rows.filter(r=>same(r.ClassID,cv));
-  let subs=[...new Set(rows.map(r=>r.Subject).filter(Boolean))];
-  el.innerHTML=subs.map(s=>`<option>${s}</option>`).join('');
+  const subs=[...new Set(rows.map(r=>r.Subject).filter(Boolean))];
+  el.innerHTML='<option value="">All Subjects</option>'+subs.map(s=>`<option>${s}</option>`).join('');
   if(prev && subs.includes(prev)) el.value=prev;
 }
 
@@ -389,12 +406,38 @@ async function rejectReq(id){try{await api('rejectEditRequest',{RequestID:id});t
 
 // ─── Syllabus ─────────────────────────────────────────────────────
 function renderSyllabus(){
-  let rows=mySyllabusRows(),cv=document.getElementById('sylClass').value,sub=document.getElementById('sylSubject').value;
+  const all=mySyllabusRows();
+  const body=document.getElementById('sylBody'), chap=document.getElementById('sylChapter');
+  const cv=document.getElementById('sylClass').value, sub=document.getElementById('sylSubject').value;
+
+  // Distinguish the three different reasons this table can be empty.
+  if(!db.syllabus.length){
+    chap.innerHTML='';
+    body.innerHTML='<tr><td colspan="7">No syllabus plans exist yet. Add one under <b>Admin &rarr; Add Syllabus Plan</b>.</td></tr>';
+    return;
+  }
+  if(!all.length){
+    chap.innerHTML='';
+    body.innerHTML='<tr><td colspan="7">Syllabus plans exist, but none are assigned to you. Ask an admin to set <b>Syllabus = YES</b> under Assign Permission.</td></tr>';
+    return;
+  }
+
+  let rows=all;
   if(cv) rows=rows.filter(r=>same(r.ClassID,cv));
   if(sub) rows=rows.filter(r=>same(r.Subject,sub));
-  if(!rows.length){document.getElementById('sylChapter').innerHTML='';document.getElementById('sylBody').innerHTML='<tr><td colspan="7">No syllabus assigned.</td></tr>';return}
-  document.getElementById('sylChapter').innerHTML=rows.map(r=>`<option value="${r.SyllabusID}">${r.Chapter}</option>`).join('');
-  document.getElementById('sylBody').innerHTML=rows.map(r=>`<tr><td>${cls(r.ClassID).ClassName}</td><td>${r.Subject}</td><td>${r.Chapter}</td><td>${user(r.TeacherID).Name}</td><td>${r.Periods||''}</td><td><span class="badge ${r.Status==='Completed'?'bgreen':'borange'}">${r.Status||'Pending'}</span></td><td>${r.UpdatedDate||''}</td></tr>`).join('');
+
+  if(!rows.length){
+    chap.innerHTML='';
+    body.innerHTML='<tr><td colspan="7">No chapters match this Class / Subject. Try <b>All Classes</b> and <b>All Subjects</b>.</td></tr>';
+    return;
+  }
+
+  // A blank SyllabusID means the sheet still has old PlanID-style columns.
+  const missingId=rows.filter(r=>!String(r.SyllabusID||'').trim()).length;
+  chap.innerHTML=rows.map(r=>`<option value="${r.SyllabusID||''}">${r.Chapter}${r.SyllabusID?'':' (no ID - cannot update)'}</option>`).join('');
+
+  body.innerHTML=(missingId?`<tr><td colspan="7" style="color:var(--red)"><b>${missingId} chapter(s) have a blank SyllabusID.</b> Run migrateSyllabusColumns_() once in Apps Script to fix them.</td></tr>`:'')
+    +rows.map(r=>`<tr><td>${cls(r.ClassID).ClassName}</td><td>${r.Subject||''}</td><td>${r.Chapter||''}</td><td>${user(r.TeacherID).Name}</td><td>${r.Periods||''}</td><td><span class="badge ${r.Status==='Completed'?'bgreen':'borange'}">${r.Status||'Pending'}</span></td><td>${r.UpdatedDate||''}</td></tr>`).join('');
 }
 async function updateSyllabus(st){
   try{
@@ -454,7 +497,7 @@ async function addAssignment(){
   try{await api('saveTeacherAssignment',{TeacherID:document.getElementById('assignTeacher').value,ClassID:document.getElementById('assignClass').value,Subject:document.getElementById('assignSubject').value,CanTakeAttendance:document.getElementById('assignAttendance').value,CanUpdateSyllabus:document.getElementById('assignSyllabus').value,Active:'YES'});toast('Assignment saved');await load(true);initFilters();renderAdmin()}catch(e){toast(e.message)}
 }
 async function addSyllabus(){
-  try{await api('upsertSyllabus',{ClassID:document.getElementById('adSylClass').value,Subject:document.getElementById('adSubject').value,Chapter:document.getElementById('adChapter').value,TeacherID:document.getElementById('adTeacher').value,Periods:document.getElementById('adPeriods').value,Status:'Pending'});toast('Syllabus added');await load(true);initFilters();renderAdmin()}catch(e){toast(e.message)}
+  try{await api('upsertSyllabus',{ClassID:document.getElementById('adSylClass').value,Subject:document.getElementById('adSubject').value,Chapter:document.getElementById('adChapter').value,TeacherID:document.getElementById('adTeacher').value,Periods:document.getElementById('adPeriods').value,Status:'Pending'});toast('Syllabus added');await load(true);initFilters();renderAdmin();renderSyllabus()}catch(e){toast(e.message)}
 }
 </script>
 </body>
