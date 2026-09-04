@@ -7,6 +7,17 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>SRI VIVEKANANDA — Junior Attendance</title>
+
+<!-- ===== PWA (installable app) ===== -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#d4601a">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SV Attendance">
+
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#0f1117;--ink3:#7a7e8e;--surface:#f7f5f0;--surface2:#ede9e1;--accent:#d4601a;--green:#2a7a4b;--red:#b83232;--blue:#1a4fd4;--border:rgba(0,0,0,.09);--shadow:0 2px 12px rgba(0,0,0,.07);--font-display:'DM Serif Display',Georgia,serif;--font-body:'DM Sans',system-ui,sans-serif}
@@ -33,6 +44,16 @@ table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px;bor
 .login-btn-wrap{position:relative}.login-spinner{display:none;position:absolute;right:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
 @media(max-width:650px){.main{padding:12px}.student-row{display:block}.topbar{height:auto;gap:8px;align-items:flex-start;flex-direction:column;padding:10px 14px}}
+@media print{
+  .tabs,.topbar,.sync-bar,.toast,button,#arNote{display:none!important}
+  .card,.stat{box-shadow:none;border:1px solid #ccc}
+  .main{max-width:none;padding:0}
+  body{background:#fff;font-size:11px}
+  th,td{padding:4px 6px}
+  .badge{border:1px solid #999;background:none!important;color:#000!important}
+  table{page-break-inside:auto}tr{page-break-inside:avoid}
+  thead{display:table-header-group}
+}
 </style>
 </head>
 <body>
@@ -51,6 +72,7 @@ table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px;bor
       <div id="loginSpinner" class="login-spinner"></div>
     </div>
     <p id="loginErr" style="color:var(--red);margin-top:10px;font-size:13px"></p>
+    <button id="installBtn" class="btn sm" style="display:none;width:100%;margin-top:14px" onclick="installApp()">&#8681; Install as App</button>
   </div>
 </div>
 
@@ -64,6 +86,7 @@ table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px;bor
     <section id="dashboard" class="page"><h1>Dashboard</h1><div id="dashStats" class="grid" style="margin:16px 0"></div><div class="card"><h2>Today Class-wise Status</h2><div id="todayClass"></div></div></section>
     <section id="attendance" class="page"><h1>Mark Attendance</h1><div class="card"><div class="row"><div class="form"><label>Class</label><select id="attClass" onchange="renderAttendance()"></select></div><div class="form"><label>Date</label><input type="date" id="attDate" onchange="renderAttendance()"></div><div class="form"><label>Session</label><select id="attSession" onchange="renderAttendance()"><option>Morning</option><option>Afternoon</option></select></div></div><div style="margin:8px 0"><button class="btn sm" onclick="declareHoliday()">Declare Holiday</button> <button class="btn sm" onclick="removeHoliday()">Remove Holiday</button></div><div id="attInfo"></div><div id="attGrid"></div><div id="attActions" style="margin-top:12px"></div></div></section>
     <section id="absentees" class="page"><h1>Absentees</h1><div class="card"><div class="row"><div class="form"><label>Date</label><input type="date" id="absDate" onchange="renderAbsentees()"></div><div class="form"><label>Class</label><select id="absClass" onchange="renderAbsentees()"></select></div></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Class</th><th>Roll</th><th>Name</th><th>Village</th><th>Phone</th><th>Marked By</th><th>Month Count</th></tr></thead><tbody id="absBody"></tbody></table></div></div></section>
+    <section id="attreport" class="page"><h1>Attendance Report</h1><div class="card"><div class="row"><div class="form"><label>From Date</label><input type="date" id="arFrom" onchange="renderAttReport()"></div><div class="form"><label>To Date</label><input type="date" id="arTo" onchange="renderAttReport()"></div><div class="form"><label>Class</label><select id="arClass" onchange="renderAttReport()"></select></div><div class="form"><label>Session</label><select id="arSession" onchange="renderAttReport()"><option value="">Both Sessions</option><option>Morning</option><option>Afternoon</option></select></div></div><div style="margin:8px 0"><button class="btn sm" onclick="setRange('month')">This Month</button> <button class="btn sm" onclick="setRange('last30')">Last 30 Days</button> <button class="btn sm" onclick="setRange('week')">This Week</button> <button class="btn primary sm" onclick="downloadAttReport()">&#8681; Download CSV</button> <button class="btn sm" onclick="window.print()">&#128424; Print</button></div><div id="arNote"></div></div><div id="arStats" class="grid" style="margin:12px 0"></div><div class="table-wrap"><table><thead><tr><th>Roll</th><th>Name</th><th>Class</th><th>Village</th><th>Phone</th><th>Sessions Held</th><th>Present</th><th>Absent</th><th>Not Marked</th><th>Attendance %</th></tr></thead><tbody id="arBody"></tbody></table></div></section>
     <section id="dayreport" class="page"><h1>Day Report</h1><div class="card"><div class="row"><div class="form"><label>Date</label><input type="date" id="repDate" onchange="renderDayReport()"></div><div class="form"><label>Session</label><select id="repSession" onchange="renderDayReport()"><option>Morning</option><option>Afternoon</option></select></div></div><div id="repStats" class="grid" style="margin:12px 0"></div><div class="table-wrap"><table><thead><tr><th>Class</th><th>Section</th><th>Total</th><th>Present</th><th>Absent</th><th>Not Marked</th></tr></thead><tbody id="repBody"></tbody></table></div></div></section>
     <section id="editrequests" class="page"><h1>Edit Requests</h1><div class="card"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Session</th><th>Class</th><th>Student</th><th>Old</th><th>New</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead><tbody id="editReqBody"></tbody></table></div></div></section>
     <section id="syllabus" class="page"><h1>Syllabus Update</h1><div class="card"><div class="row"><div class="form"><label>Class</label><select id="sylClass" onchange="populateSyllabusSubjects();renderSyllabus()"></select></div><div class="form"><label>Subject</label><select id="sylSubject" onchange="renderSyllabus()"></select></div><div class="form"><label>Chapter</label><select id="sylChapter"></select></div><div><button class="btn green" onclick="updateSyllabus('Completed')">Completed Today</button> <button class="btn" onclick="updateSyllabus('In Progress')">In Progress</button></div></div></div><div class="table-wrap"><table><thead><tr><th>Class</th><th>Subject</th><th>Chapter</th><th>Teacher</th><th>Periods</th><th>Status</th><th>Updated</th></tr></thead><tbody id="sylBody"></tbody></table></div></section>
@@ -237,7 +260,7 @@ function buildTabs(){
   if(currentUser.Role==='student') t=[['student','My Dashboard']];
   else{
     t=[['dashboard','Dashboard']];
-    if(myAttendanceClasses().length) t.push(['attendance','Attendance'],['absentees','Absentees'],['dayreport','Day Report']);
+    if(myAttendanceClasses().length) t.push(['attendance','Attendance'],['absentees','Absentees'],['dayreport','Day Report'],['attreport','Attendance Report']);
     if(['admin','principal'].includes(currentUser.Role)||mySyllabusRows().length) t.push(['syllabus','Syllabus']);
     if(['admin','principal'].includes(currentUser.Role)||myExams().length) t.push(['marks','Marks']);
     if(['admin','principal'].includes(currentUser.Role)) t.push(['editrequests','Edit Requests']);
@@ -251,7 +274,7 @@ function show(id){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   const tb=document.querySelector(`[data-t="${id}"]`);if(tb)tb.classList.add('active');
-  ({dashboard:renderDashboard,attendance:renderAttendance,absentees:renderAbsentees,dayreport:renderDayReport,syllabus:renderSyllabus,marks:renderMarks,student:renderStudent,admin:renderAdmin,editrequests:renderEditRequests}[id]||(()=>{}))();
+  ({dashboard:renderDashboard,attendance:renderAttendance,absentees:renderAbsentees,dayreport:renderDayReport,attreport:renderAttReport,syllabus:renderSyllabus,marks:renderMarks,student:renderStudent,admin:renderAdmin,editrequests:renderEditRequests}[id]||(()=>{}))();
 }
 
 function opts(el,arr,val='ClassID',txt='ClassName',all=''){
@@ -272,6 +295,11 @@ function initFilters(){
   ['attDate','absDate','repDate','exDate'].forEach(id=>{let e=document.getElementById(id);if(e&&!e.value)e.value=today()});
   optsKeep(document.getElementById('attClass'),myAttendanceClasses());
   optsKeep(document.getElementById('absClass'),myAttendanceClasses(),'ClassID','ClassName','All Classes');
+  optsKeep(document.getElementById('arClass'),myAttendanceClasses(),'ClassID','ClassName','All Classes');
+  // Report defaults to the current month, first time only.
+  const arF=document.getElementById('arFrom'), arT=document.getElementById('arTo');
+  if(arF&&!arF.value) arF.value=today().slice(0,8)+'01';
+  if(arT&&!arT.value) arT.value=today();
   opts(document.getElementById('exClass'),db.classes);
   opts(document.getElementById('exTeacher'),db.users.filter(u=>clean(u.Role)==='teacher'),'UserID','Name');
   opts(document.getElementById('adSylClass'),db.classes);
@@ -397,6 +425,116 @@ function renderDayReport(){
   document.getElementById('repStats').innerHTML=`<div class="stat"><div class="v">${tot.t}</div><div class="l">Total</div></div><div class="stat"><div class="v">${tot.p}</div><div class="l">Present</div></div><div class="stat"><div class="v">${tot.a}</div><div class="l">Absent</div></div><div class="stat"><div class="v">${tot.n}</div><div class="l">Not Marked</div></div>`;
 }
 
+// ─── Attendance Report (date range, student-wise) ─────────────────
+function setRange(kind){
+  const t=new Date(), pad=n=>String(n).padStart(2,'0');
+  const fmt=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  let from;
+  if(kind==='month') from=new Date(t.getFullYear(),t.getMonth(),1);
+  else if(kind==='week'){ from=new Date(t); from.setDate(t.getDate()-((t.getDay()+6)%7)); }
+  else { from=new Date(t); from.setDate(t.getDate()-29); }
+  document.getElementById('arFrom').value=fmt(from);
+  document.getElementById('arTo').value=fmt(t);
+  renderAttReport();
+}
+
+// Returns {rows, held, totals} for the current filter selection.
+function buildAttReport(){
+  const from=document.getElementById('arFrom').value;
+  const to=document.getElementById('arTo').value;
+  const cid=document.getElementById('arClass').value;
+  const ses=document.getElementById('arSession').value;
+
+  const classes=myAttendanceClasses().filter(c=>!cid||same(c.ClassID,cid));
+  const classIds=new Set(classes.map(c=>String(c.ClassID)));
+
+  const recs=db.attendance.filter(a=>{
+    const d=String(a.Date||'');
+    return d>=from && d<=to && classIds.has(String(a.ClassID)) && (!ses||same(a.Session,ses));
+  });
+
+  // "Sessions held" for a class = distinct Date+Session pairs that were actually marked.
+  // Counting this per class (not globally) keeps the % fair when classes are marked
+  // on different days.
+  const heldByClass={};
+  recs.forEach(a=>{
+    const k=String(a.ClassID);
+    (heldByClass[k]=heldByClass[k]||new Set()).add(String(a.Date)+'|'+clean(a.Session));
+  });
+
+  // Index every student's records once instead of filtering the array per student.
+  const byStudent={};
+  recs.forEach(a=>{
+    const k=String(a.StudentID);
+    const s=byStudent[k]=byStudent[k]||{P:0,A:0};
+    if(a.Status==='P') s.P++; else if(a.Status==='A') s.A++;
+  });
+
+  const students=db.students.filter(s=>classIds.has(String(s.ClassID))&&active(s.Active));
+  const rows=students.map(s=>{
+    const c=byStudent[String(s.StudentID)]||{P:0,A:0};
+    const held=(heldByClass[String(s.ClassID)]||new Set()).size;
+    const marked=c.P+c.A;
+    const notMarked=Math.max(held-marked,0);
+    const pct=marked?Math.round(c.P/marked*1000)/10:0;
+    return {
+      Roll:s.RollNo||'', Name:s.StudentName||'', Class:cls(s.ClassID).ClassName||'',
+      Village:s.Village||'', Phone:s.ParentPhone||'',
+      Held:held, Present:c.P, Absent:c.A, NotMarked:notMarked, Pct:pct
+    };
+  }).sort((a,b)=>a.Class.localeCompare(b.Class)||(Number(a.Roll)||0)-(Number(b.Roll)||0)||a.Name.localeCompare(b.Name));
+
+  const totals=rows.reduce((t,r)=>{t.P+=r.Present;t.A+=r.Absent;t.N+=r.NotMarked;return t},{P:0,A:0,N:0});
+  return {rows,totals,from,to};
+}
+
+function renderAttReport(){
+  const {rows,totals,from,to}=buildAttReport();
+  const note=document.getElementById('arNote');
+
+  if(!from||!to){ note.innerHTML='<span class="badge borange">Choose a From and To date.</span>'; return; }
+  if(from>to){ note.innerHTML='<span class="badge bred">From date is after To date.</span>'; return; }
+
+  // The server only sends the last 30 days to keep login fast.
+  const oldest=db.attendance.reduce((m,a)=>{const d=String(a.Date||'');return (!m||d<m)?d:m},'');
+  note.innerHTML = (oldest && from<oldest)
+    ? `<span class="badge borange">Only data from ${oldest} onward is loaded in the app. Older records stay in the Google Sheet.</span>`
+    : `<span class="badge bblue">Showing ${from} to ${to}.</span>`;
+
+  const marked=totals.P+totals.A;
+  const pct=marked?Math.round(totals.P/marked*1000)/10:0;
+  document.getElementById('arStats').innerHTML=
+    `<div class="stat"><div class="v">${rows.length}</div><div class="l">Students</div></div>`+
+    `<div class="stat"><div class="v">${totals.P}</div><div class="l">Total Present</div></div>`+
+    `<div class="stat"><div class="v">${totals.A}</div><div class="l">Total Absent</div></div>`+
+    `<div class="stat"><div class="v">${totals.N}</div><div class="l">Not Marked</div></div>`+
+    `<div class="stat"><div class="v">${pct}%</div><div class="l">Overall Attendance</div></div>`;
+
+  document.getElementById('arBody').innerHTML = rows.length
+    ? rows.map(r=>{
+        const cl=r.Pct>=75?'bgreen':r.Pct>=50?'borange':'bred';
+        return `<tr><td>${r.Roll}</td><td>${r.Name}</td><td>${r.Class}</td><td>${r.Village}</td><td>${r.Phone}</td><td>${r.Held}</td><td>${r.Present}</td><td>${r.Absent}</td><td>${r.NotMarked}</td><td><span class="badge ${cl}">${r.Pct}%</span></td></tr>`;
+      }).join('')
+    : '<tr><td colspan="10">No attendance records in this date range.</td></tr>';
+}
+
+function downloadAttReport(){
+  const {rows,from,to}=buildAttReport();
+  if(!rows.length){ toast('Nothing to download'); return; }
+  const head=['Roll','Name','Class','Village','Phone','Sessions Held','Present','Absent','Not Marked','Attendance %'];
+  const esc=v=>{const s=String(v==null?'':v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv=[head.join(',')].concat(
+    rows.map(r=>[r.Roll,r.Name,r.Class,r.Village,r.Phone,r.Held,r.Present,r.Absent,r.NotMarked,r.Pct].map(esc).join(','))
+  ).join('\r\n');
+  // BOM so Excel opens Telugu/accented names correctly.
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=`attendance_${from}_to_${to}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('CSV downloaded');
+}
+
 // ─── Edit Requests ────────────────────────────────────────────────
 function renderEditRequests(){
   document.getElementById('editReqBody').innerHTML=(db.editRequests||[]).map(r=>`<tr><td>${r.Date}</td><td>${r.Session}</td><td>${cls(r.ClassID).ClassName}</td><td>${stud(r.StudentID).StudentName}</td><td>${r.OldStatus}</td><td>${r.NewStatus}</td><td>${r.Reason}</td><td>${r.Status}</td><td>${clean(r.Status)==='pending'?`<button class="btn green sm" onclick="approveReq('${r.RequestID}')">Approve</button> <button class="btn red sm" onclick="rejectReq('${r.RequestID}')">Reject</button>`:''}</td></tr>`).join('')||'<tr><td colspan="9">No requests</td></tr>';
@@ -499,6 +637,55 @@ async function addAssignment(){
 async function addSyllabus(){
   try{await api('upsertSyllabus',{ClassID:document.getElementById('adSylClass').value,Subject:document.getElementById('adSubject').value,Chapter:document.getElementById('adChapter').value,TeacherID:document.getElementById('adTeacher').value,Periods:document.getElementById('adPeriods').value,Status:'Pending'});toast('Syllabus added');await load(true);initFilters();renderAdmin();renderSyllabus()}catch(e){toast(e.message)}
 }
+/* ===== PWA: install as an app ===== */
+let deferredPrompt=null;
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      // If a new version is uploaded, activate it and reload once.
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        if(!nw)return;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed'&&navigator.serviceWorker.controller){
+            nw.postMessage('SKIP_WAITING');
+            toast('New version installed — reloading');
+            setTimeout(()=>location.reload(),1200);
+          }
+        });
+      });
+    }).catch(()=>{});
+  });
+}
+
+// Android / Windows: capture the browser's install prompt and show our own button.
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  const b=document.getElementById('installBtn');
+  if(b) b.style.display='inline-block';
+});
+
+async function installApp(){
+  if(!deferredPrompt){
+    // iPhone/iPad have no install prompt — they use the Share menu instead.
+    alert('To install:\n\niPhone / iPad — tap the Share button, then "Add to Home Screen".\n\nAndroid — open the browser menu (⋮) and tap "Install app" or "Add to Home screen".');
+    return;
+  }
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  const b=document.getElementById('installBtn');
+  if(b) b.style.display='none';
+}
+
+window.addEventListener('appinstalled',()=>{
+  deferredPrompt=null;
+  const b=document.getElementById('installBtn');
+  if(b) b.style.display='none';
+  toast('App installed');
+});
 </script>
 </body>
 </html>
