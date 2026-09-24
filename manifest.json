@@ -1,0 +1,28 @@
+{
+  "id": "/vivekananda-junior/",
+  "name": "Sri Vivekananda Attendance",
+  "short_name": "SV Attend",
+  "description": "Attendance, marks and syllabus for Sri Vivekananda Junior College.",
+  "lang": "en-IN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#d4601a",
+  "categories": ["education"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
